@@ -1,0 +1,1 @@
+erp42_serial.py에서 erp_port를 못찾는데 아마 erp42.launch.py에서 parameter에 정의된 erp_port문제인 것 같음 런치파일 다시 살펴보기

@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>xsens_mti_ros2_driver</name>
+  <version>1.0.2</version>
+  <description>ROS 2 driver for Xsens MTi IMU sensors</description>
+
+  <maintainer email="support@movella.com">Movella</maintainer>
+  <license>BSD</license>
+
+  <!-- build tools -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- build dependencies -->
+  <build_depend>rclcpp</build_depend>
+  <build_depend>rosidl_default_generators</build_depend>
+  <build_depend>tf2</build_depend>
+  <build_depend>tf2_ros</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>nmea_msgs</build_depend>
+  <build_depend>mavros_msgs</build_depend>
+
+  <!-- export & exec 동일하게 -->
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>tf2</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>nmea_msgs</exec_depend>
+  <exec_depend>mavros_msgs</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

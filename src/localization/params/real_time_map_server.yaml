@@ -1,0 +1,5 @@
+real_time_map_server_node:
+  ros__parameters:
+    map_file: "/home/acca/catkin_ws/src/lidar_localization_ros2-humble/resource/GlobalMap.pcd"
+    grid_size: 25.0 # This field requires DOUBLE TYPE VALUE. NOT INT!
+    map_topic: "/map"

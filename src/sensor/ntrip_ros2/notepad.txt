@@ -1,0 +1,61 @@
+sudo apt install ros-foxy-nmea-msgs
+
+ros2 pkg create --build-type ament_cmake rtcm_msgs --dependencies std_msgs
+colcon build --packages-select rtcm_msgs
+ros2 interface show rtcm_msgs/msg/Message
+
+!! 주의사항 !!
+Header를 사용할 때는 std_msgs/Header를 넣어야 함
+
+```
+# A message representing a single RTCM message.
+std_msgs/Header rtcm_header
+
+uint8[] message
+```
+
+CMakeLists에도 추가해주어야 한다.
+```
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+```
+
+```
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Message.msg"
+  DEPENDENCIES std_msgs
+)
+```
+
+메세지를 사용하는 패키지의 package.xml에서도 다음 작업이 필요하다.
+
+```
+  <exec_depend>rtcm_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+```
+
+종속성을 가진 커스텀 메세지이므로 이러한 작업이 필요한 것! 
+
+ros2 pkg create --build-type ament_python ntrip_ros --dependencies rtcm_msgs
+
+## 사용 가능한 마운트 포인트 조회하기
+
+```
+curl --http0.9 www.gnssdata.or.kr:2101 \
+   --user tge1375@naver.com:gnss \
+   -H "User-Agent: curl/7.68.0" \
+   -H "Connection: close" \
+   -H "Ntrip-Version: Ntrip/2.0"
+```
+
+# 2022 06 03 
+
+```
+pip3 install pyserial
+
+# Udev
+Bus 003 Device 007: ID 1546:01a8 U-Blox AG 
+sudo chmod 777 ttyACM1
+
+```

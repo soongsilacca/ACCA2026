@@ -1,0 +1,25 @@
+<1/26>
+aram_ekf.yaml 파일 맨위에 publish_tf는 true한다고 자동이 아닌듯.
+true로 해놓고 작년처럼 map_tf_broadcater.py 이런거 하나 실행시키거나
+아니면 혹시 xacro파일에 할 수 있지 않을까?
+
+->bag 파일만 실행시켜도 /tf (imu_link <-> world, hz:260) 토픽 발생
+ㄴ /tf 토픽에 가끔씩 (odom<->base_link)도 보임.
+ㄴ imu 자체에서 하는 tf(world<->imu_link)토픽과 ekf_node.cpp에서 하는 tf(odom<->base_link)토픽의 토픽명이 (/tf) 동일한 듯 보임.
+
+ㄴ 작년 tf tree보면 imu<->world 사이의 tf는 없었으니 이거를 없애는 방법 알아보기 -> xsenx -> params에서 transform을 false로 바꾸면 가능
+
+-odom<->base_link tf 생겨도 odometry/navsat 토픽은 나오는데 odometry/gps 토픽은 안 나옴.
+ㄴgps 공분산 높아서 그런가??
+
+----------------------------------------
+<1/27>
+
+-odometry/navsat의 공분산이 주기적으로 커지고 max가 될 때 한번씩 pose가 버벅이는 , jump?하는 현상 있음.
+
+-yaw_offset에 0.3넣으면 heading이 맞기는 하지만 그래도 rotate_yaw 코드 만들어서 heading잡기
+
+-odometry/gps의 hz 너무 낮음 (1hz) -> gps도 1hz임 -> 아마 gps의 hz먼저 높여보기 (작년에 8hz로 했던 것 같음)
+ㄴ이거 때문에 ekf계산 hz를 50으로 높이면 값이 아예 튀어 버리는 듯
+
+-imu도 mtmanager로 설정 다시 확인 필요 -> 주기도 아마 400hz였던 것 같았음

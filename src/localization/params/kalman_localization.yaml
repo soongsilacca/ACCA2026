@@ -1,0 +1,48 @@
+kalman_localization_node:
+  ros__parameters:
+    topic: "/odometry/kalman"
+
+    is_publish_tf: true
+    logging: true
+
+    frame_id: "odom"
+    child_frame_id: "base_link"
+
+    noise:  [
+              0.01, 0.0, 0.0, 0.0, 0.0, # x
+              0.0, 0.01, 0.0, 0.0, 0.0, # y
+              0.0, 0.0, 0.01, 0.0, 0.0, # yaw
+              0.0, 0.0, 0.0, 0.01, 0.0, # v
+              0.0, 0.0, 0.0, 0.0, 0.01, # vyaw
+            ]
+
+
+    gps_topic: "/ublox_gps_node/fix"
+    # If this value is true, it will use gps_covariance as sensor covariance. Else, it will use sensor covariance
+    gps_use_covariance: false 
+    gps_covariance: [
+                    0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 999.9, 0.0,
+                    0.0, 0.0, 0.0, 0.0, 0.0,
+                    ]
+
+    encoder_topic: "/erp42_feedback"
+    encoder_covariance: [
+                        0.0, 0.0, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0, 0.3, 0.0,
+                        0.0, 0.0, 0.0, 0.0, 0.3,
+                        ]
+
+    imu_topic: "/imu/data"
+    imu_use_covariance: false
+    imu_covariance: [
+                    0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, 99.0, 0.0,
+                    0.0, 0.0, 0.0, 0.0, 0.0,
+                    ]
