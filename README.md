@@ -1,4 +1,4 @@
-# ACCA_2025
+# ACCA_2026
 Autonomous Vihicle Project with ERP42 
 
 ## repo 소개
@@ -8,7 +8,7 @@ ACCA팀 주요 코드
 ## 빌드
     git clone https://github.com/soongsilacca/ACCA2026.git
 
-    cd ACCA_2025
+    cd ACCA_2026
 
 *msg 먼저 빌드해주기!!* (권장)
 
