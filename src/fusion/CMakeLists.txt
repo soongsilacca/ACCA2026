@@ -11,7 +11,6 @@ find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(darknet_ros_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -35,9 +34,6 @@ ament_target_dependencies(cropbox_ys rclcpp std_msgs sensor_msgs)
 add_executable(image_concat src/image_concat_bs.cpp)
 ament_target_dependencies(image_concat rclcpp sensor_msgs cv_bridge OpenCV)
 
-add_executable(fusion_3cam src/fusion_bs_pointstamped_3cam.cpp)
-ament_target_dependencies(fusion_3cam rclcpp std_msgs sensor_msgs geometry_msgs darknet_ros_msgs visualization_msgs cv_bridge OpenCV)
-
 
 #darknet_ros_msgs
 install(TARGETS
@@ -45,7 +41,6 @@ install(TARGETS
   cropbox_ys
   cropbox_bum
   image_concat
-  fusion_3cam
   DESTINATION lib/${PROJECT_NAME})
 ament_package()
 
