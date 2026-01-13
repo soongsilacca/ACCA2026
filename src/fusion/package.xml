@@ -12,7 +12,6 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
-  <depend>darknet_ros_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>eigen3</depend>
   <depend>visuatlization_msgs</depend>
