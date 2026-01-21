@@ -1,8 +1,0 @@
-map: "kcity"
-
-file_paths:
-  school:
-    lanelet_map: "/home/gjs/robot_ws/src/erp42/erp42_control/config/0827_school.osm"
-
-  kcity:
-    lanelet_map: "/home/gjs/robot_ws/src/erp42/erp42_control/config/2024_kcity_bonsun_0828.osm"

@@ -1,0 +1,23 @@
+# Map Anchor Configuration
+# Fixed GPS origin point for the map frame
+# The map frame origin (0,0) will be at this GPS location
+
+gps_map_origin_node:
+  ros__parameters:
+    # Map origin GPS coordinates (WGS84)
+    # Set these to your desired map origin location
+    origin_latitude: 37.495    # degrees - CHANGE THIS to your location
+    origin_longitude: 126.957  # degrees - CHANGE THIS to your location
+    origin_altitude: 0.0           # meters (usually 0 for 2D)
+
+    # Map origin heading (optional)
+    # Heading in degrees from East (0 = East, 90 = North)
+    # Set to 0 to align X-axis with East, Y-axis with North (ENU convention)
+    origin_heading_deg: 0.0
+
+    # Use fixed origin (if false, uses first GPS reading as origin)
+    use_fixed_origin: true
+    
+    # Magnetometer orientation (DISABLED - causes diagonal movement issue)
+    use_imu_heading: true      
+    yaw_offset_deg: 0.0        

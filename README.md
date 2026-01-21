@@ -1,30 +1,46 @@
-# ACCA_2025
-Autonomous Vihicle Project with ERP42 
+# ACCA (2026)
+Autonomous Car Core Architecture  
+Development in progress
 
-## repo 소개
-ACCA팀 주요 코드
+---
+
+## Localization
+
+### Input Topics
+| Topic | Type | Description |
+|---|---|---|
+| `/ublox_gps_node/fix` | `sensor_msgs/msg/NavSatFix` | GPS absolute position |
+| `/imu/data` | `sensor_msgs/msg/Imu` | Orientation + Angular rate + Linear acceleration |
+| `/erp42_feedback` | `erp42_msgs/msg/SerialFeedBack` | Vehicle speed, steering, gear, encoder |
+
+### Output Topics
+| Topic | Type | Frame | Description |
+|---|---|---|---|
+| `/odometry/local` | `nav_msgs/msg/Odometry` | `odom` | Local odometry (IMU + Vehicle Feedback) |
+| `/odometry/global` | `nav_msgs/msg/Odometry` | `map` | Global fused odometry (GPS + Local DR) |
+| `/odometry/gps` | `nav_msgs/msg/Odometry` | `map` | GPS ground-truth |
+
+---
+
+## Architecture
+- Local odometry: IMU + wheel feedback 기반 Dead-reckoning
+- Global odometry: GPS 기반 map 보정
+- Frame 구조: `map → odom → base_link`
+
+---
+
+## 실행 방법
+
+Localization 실행:
+
+```bash
+ros2 launch localization dual_ekf_localization.launch.py
 
 
-## 빌드
-    git clone https://github.com/soongsilacca/ACCA2026.git
 
-    cd ACCA_2025
+## 성능 분석
 
-*msg 먼저 빌드해주기!!* (권장)
+RMSE 기반 성능 분석 :
 
-    colcon build --symlink-install --packages-select adaptive_clustering_msgs
-
-*msg 빌드 적용을 위한 소스*
-
-    . install/setup.bash
-
-*전체 패키지 빌드*
-
-    colcon build --symlink-install
-
-## prerequisite
-    mavros_msgs
-    nmea_msgs
-    ...
-    
-
+```bash
+ros2 run localization rmse_analyzer
