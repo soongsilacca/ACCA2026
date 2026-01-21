@@ -23,6 +23,7 @@ Development in progress
 ---
 
 ## Architecture
+
 - Local odometry: IMU + wheel feedback 기반 Dead-reckoning
 - Global odometry: GPS 기반 map 보정
 - Frame 구조: `map → odom → base_link`
@@ -31,16 +32,14 @@ Development in progress
 
 ## 실행 방법
 
-Localization 실행:
+Localization 실행 :
 
-```bash
 ros2 launch localization dual_ekf_localization.launch.py
 
-
+---
 
 ## 성능 분석
 
 RMSE 기반 성능 분석 :
 
-```bash
 ros2 run localization rmse_analyzer
