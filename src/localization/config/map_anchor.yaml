@@ -9,6 +9,10 @@ gps_map_origin_node:
     origin_latitude: 37.495    # degrees - CHANGE THIS to your location
     origin_longitude: 126.957  # degrees - CHANGE THIS to your location
     origin_altitude: 0.0           # meters (usually 0 for 2D)
+    
+    # UTM Zone information (Korea is in UTM Zone 52N)
+    utm_zone: 52
+    utm_band: 'N'
 
     # Map origin heading (optional)
     # Heading in degrees from East (0 = East, 90 = North)

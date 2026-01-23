@@ -50,6 +50,22 @@ ekf_local_node:
     imu0_remove_gravitational_acceleration: false
 
     # ============================================
+    # FAST-LIO Odometry Configuration (odom1)
+    # ============================================
+    odom1: /fastlio/odom_aligned
+    
+    # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    odom1_config: [true,  true,  false,
+                   false, false, true,     # fuse x, y, yaw (LiDAR position & orientation)
+                   false, false, false,    # don't fuse velocity (use wheel odom)
+                   false, false, false,    # don't fuse angular velocity
+                   false, false, false]    # don't fuse acceleration
+    
+    odom1_queue_size: 10
+    odom1_differential: false
+    odom1_relative: false
+
+    # ============================================
     # Process Noise Covariance
     # ============================================
     process_noise_covariance: [0.05, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,

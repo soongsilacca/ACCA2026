@@ -63,6 +63,20 @@ ekf_global_node:
     odom1_relative: false
 
     # ============================================
+    # NDT Localization Configuration (pose0)
+    # ============================================
+    pose0: /ndt_pose
+    pose0_config: [true,  true,  false,    # x, y
+                   false, false, true,     # yaw
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    
+    pose0_queue_size: 10
+    pose0_differential: false
+    pose0_relative: false
+
+    # ============================================
     # GPS Configuration (odom2 - NavSatFix converted to Odometry)
     # ============================================
     # Note: GPS will be converted from NavSatFix to Odometry by gps_to_odometry_node

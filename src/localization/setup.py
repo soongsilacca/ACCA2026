@@ -14,6 +14,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        (os.path.join('share', package_name, 'map'), glob('map/*.pcd')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -30,6 +31,8 @@ setup(
             'odom_map_republisher = localization.odom_map_republisher:main',
             'wheel_odometry_erp = localization.wheel_odometry_erp:main',
             'rmse_analyzer = localization.rmse_analyzer:main',
+            'pcd_map_publisher = localization.pcd_map_publisher:main',
+            'fastlio_odometry_adapter = localization.fastlio_odometry_adapter:main',
         ],
     },
 )

@@ -176,6 +176,51 @@ def generate_launch_description():
     )
     
     # ============================================
+    # PCD Map Publisher (Service-triggered)
+    # ============================================
+    pcd_map_publisher_node = Node(
+        package='localization',
+        executable='pcd_map_publisher',
+        name='pcd_map_publisher_node',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'pcd_file': os.path.join(localization_share_dir, 'map', 'school.pcd')
+        }]
+    )
+    
+    # ============================================
+    # FAST-LIO Odometry Adapter
+    # ============================================
+    fastlio_adapter_node = Node(
+        package='localization',
+        executable='fastlio_odometry_adapter',
+        name='fastlio_odometry_adapter_node',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'use_twist': False,  # Don't use twist (velocity) from FAST-LIO
+        }]
+    )
+
+    # ============================================
+    # NDT Localization Node
+    # ============================================
+    ndt_localization_node = Node(
+        package='ndt_localization',
+        executable='ndt_localization_node',
+        name='ndt_localization_node',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'ndt_resolution': 1.0,
+            'ndt_step_size': 0.1,
+            'scan_voxel_size': 0.3,
+            'map_voxel_size': 0.5,
+        }]
+    )
+    
+    # ============================================
     # Static TF Publishers
     # ============================================
     
@@ -231,6 +276,15 @@ def generate_launch_description():
         
         # Odom Map Aligner (Forces Map-Odom Orientation Alignment)
         odom_map_republisher_node,
+        
+        # PCD Map Publisher (Service-triggered)
+        pcd_map_publisher_node,
+        
+        # FAST-LIO Odometry Adapter
+        fastlio_adapter_node,
+        
+        # NDT Localization
+        ndt_localization_node,
         
         # Wheel Odometry
         wheel_odom_node,

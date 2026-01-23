@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-GPS to Odometry Converter (Fixed Datum)
+GPS to Odometry Converter (UTM-based)
 
-Converts GPS (NavSatFix) to Odometry message using fixed datum from map_anchor.yaml
-This replaces navsat_transform_node for simpler, predictable behavior
+Converts GPS (NavSatFix) to Odometry message using UTM projection
+Simpler and more accurate than manual WGS84 conversion
 """
 
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import NavSatFix
 from nav_msgs.msg import Odometry
+import utm
 import math
 
 
@@ -18,31 +19,26 @@ class GPSToOdometry(Node):
         super().__init__("gps_to_odometry_node")
 
         # Datum (map origin) from map_anchor.yaml
-        self.declare_parameter("datum_latitude", 38.239)
-        self.declare_parameter("datum_longitude", 126.773)
+        self.declare_parameter("datum_latitude", 37.495)
+        self.declare_parameter("datum_longitude", 126.957)
         self.declare_parameter("datum_altitude", 0.0)
+        
+        # UTM Zone information
+        self.declare_parameter("utm_zone", 52)
+        self.declare_parameter("utm_band", 'N')
 
         self.datum_lat = self.get_parameter("datum_latitude").value
         self.datum_lon = self.get_parameter("datum_longitude").value
         self.datum_alt = self.get_parameter("datum_altitude").value
+        self.utm_zone = self.get_parameter("utm_zone").value
+        self.utm_band = self.get_parameter("utm_band").value
 
-        # WGS84 Ellipsoid Constants
-        self.a = 6378137.0  # Semi-major axis
-        self.f = 1 / 298.257223563  # Flattening
-        self.e2 = self.f * (2 - self.f)  # Square of eccentricity
-
-        # Calculate conversion factors at datum latitude
-        lat_rad = math.radians(self.datum_lat)
-        sin_lat = math.sin(lat_rad)
-        
-        # Radii of curvature
-        # Meridian radius (North-South)
-        Rm = self.a * (1 - self.e2) / math.pow(1 - self.e2 * sin_lat**2, 1.5)
-        # Prime vertical radius (East-West)
-        Rn = self.a / math.sqrt(1 - self.e2 * sin_lat**2)
-
-        self.M_PER_LAT = Rm * (math.pi / 180.0)
-        self.M_PER_LON = Rn * math.cos(lat_rad) * (math.pi / 180.0)
+        # Convert datum to UTM coordinates
+        self.datum_easting, self.datum_northing, _, _ = utm.from_latlon(
+            self.datum_lat, 
+            self.datum_lon,
+            force_zone_number=self.utm_zone
+        )
 
         # ROS communication
         self.sub_gps = self.create_subscription(
@@ -50,10 +46,10 @@ class GPSToOdometry(Node):
         )
         self.pub_odom = self.create_publisher(Odometry, "/gps/odometry_nwu", 10)
 
-        self.get_logger().info(f"GPS to Odometry Converter Started (WGS84)")
-        self.get_logger().info(f"Datum: {self.datum_lat}°N, {self.datum_lon}°E")
+        self.get_logger().info(f"GPS to Odometry Converter Started (UTM)")
+        self.get_logger().info(f"Datum: {self.datum_lat:.6f}°N, {self.datum_lon:.6f}°E")
         self.get_logger().info(
-            f"Conversion: {self.M_PER_LAT:.2f} m/deg (lat), {self.M_PER_LON:.2f} m/deg (lon)"
+            f"Datum UTM: E={self.datum_easting:.2f}, N={self.datum_northing:.2f} (Zone {self.utm_zone}{self.utm_band})"
         )
         
         # State for heading calculation
@@ -65,15 +61,18 @@ class GPSToOdometry(Node):
         if msg.status.status < 0:
             return  # Invalid GPS
 
-        # Convert GPS to local NWU coordinates (X=North, Y=West, Z=Up)
-        # Verify: X (North) = d_lat
-        # Verify: Y (West)  = -d_lon (because d_lon is East)
-        d_lat = msg.latitude - self.datum_lat
-        d_lon = msg.longitude - self.datum_lon
+        # Convert GPS to UTM coordinates
+        easting, northing, _, _ = utm.from_latlon(
+            msg.latitude,
+            msg.longitude,
+            force_zone_number=self.utm_zone
+        )
 
-        # NOTE: User requested Map X = North (2D Mode)
-        x_pos = d_lat * self.M_PER_LAT  # North
-        y_pos = -(d_lon * self.M_PER_LON)  # West (Right Hand Rule with Z Up)
+        # Calculate offset from datum (NWU coordinates)
+        # X (North) = northing difference
+        x_pos = northing - self.datum_northing
+        # Y (West) = -easting difference (NWU convention)
+        y_pos = -(easting - self.datum_easting)
         z_pos = 0.0  # Force 2D
 
         # Create Odometry message
@@ -86,7 +85,6 @@ class GPSToOdometry(Node):
         odom.pose.pose.position.x = x_pos
         odom.pose.pose.position.y = y_pos
         odom.pose.pose.position.z = z_pos
-
 
         # Orientation & Heading Calculation
         # Calculate heading from motion (Course Over Ground)
@@ -124,16 +122,17 @@ class GPSToOdometry(Node):
             else:
                 # Not moved enough, keep previous orientation (or identity if none)
                 # But assume high covariance because we are stationary/noisy
-                odom.pose.pose.orientation.w = 1.0 # Or keep last known?
+                odom.pose.pose.orientation.w = 1.0
                 # Better to just publish position/velocity and HIGH angular covariance
                 # so EKF ignores it and relies on IMU/Wheel for stationary yaw hold
                 odom.pose.covariance[35] = 1000.0
 
-        # Covariance (Force EKF to trust GPS Position)
-        # Use extremely small covariance to reduce RMSE against GPS
-        odom.pose.covariance[0] = 0.0001 # x variance
-        odom.pose.covariance[7] = 0.0001 # y variance
-        odom.pose.covariance[14] = 0.0001 # z variance
+        # Covariance (Use GPS reported covariance)
+        # NavSatFix covariance: [lat, lon, alt] (ENU)
+        # Map to NWU: x (North) = lat, y (West) = lon
+        odom.pose.covariance[0] = msg.position_covariance[0]  # x (North) from lat variance
+        odom.pose.covariance[7] = msg.position_covariance[4]  # y (West) from lon variance  
+        odom.pose.covariance[14] = msg.position_covariance[8] # z (Up) from alt variance
         
         self.pub_odom.publish(odom)
 
