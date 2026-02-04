@@ -1,0 +1,68 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    use_sim_time: true
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+      
+    gripper_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    mimic_joint_controller:
+      type: forward_command_controller/ForwardCommandController
+
+joint_state_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - joint0
+      - joint1
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+    gains:
+      joint0: {p: 1000.0, i: 0.0, d: 50.0}
+      joint1: {p: 1000.0, i: 0.0, d: 50.0}
+      joint2: {p: 1000.0, i: 0.0, d: 50.0}
+      joint3: {p: 500.0, i: 0.0, d: 20.0}
+      joint4: {p: 500.0, i: 0.0, d: 20.0}
+      joint5: {p: 500.0, i: 0.0, d: 20.0}
+
+gripper_controller:
+  ros__parameters:
+    joints:
+      - finger_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+    gains:
+      finger_joint: {p: 100.0, i: 0.0, d: 10.0}
+
+mimic_joint_controller:
+  ros__parameters:
+    joints:
+      - left_inner_knuckle_joint
+      - left_inner_finger_joint
+      - right_outer_knuckle_joint
+      - right_inner_knuckle_joint
+      - right_inner_finger_joint
+    interface_name: position

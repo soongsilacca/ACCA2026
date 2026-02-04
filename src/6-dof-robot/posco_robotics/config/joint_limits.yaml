@@ -1,0 +1,76 @@
+joint_limits:
+  joint0:
+    has_velocity_limits: true
+    max_velocity: 2.6
+    has_acceleration_limits: true
+    max_acceleration: 5.0
+  joint1:
+    has_velocity_limits: true
+    max_velocity: 2.6
+    has_acceleration_limits: true
+    max_acceleration: 5.0
+  joint2:
+    has_velocity_limits: true
+    max_velocity: 2.6
+    has_acceleration_limits: true
+    max_acceleration: 5.0
+  joint3:
+    has_velocity_limits: true
+    max_velocity: 3.14
+    has_acceleration_limits: true
+    max_acceleration: 6.0
+  joint4:
+    has_velocity_limits: true
+    max_velocity: 3.14
+    has_acceleration_limits: true
+    max_acceleration: 6.0
+  joint5:
+    has_velocity_limits: true
+    max_velocity: 3.14
+    has_acceleration_limits: true
+    max_acceleration: 6.0
+  finger_joint:
+    has_velocity_limits: true
+    max_velocity: 2.0
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+  left_inner_knuckle_joint:
+    has_velocity_limits: true
+    max_velocity: 2.0
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+    has_position_limits: true
+    min_position: -0.1
+    max_position: 0.8757
+  left_inner_finger_joint:
+    has_velocity_limits: true
+    max_velocity: 2.0
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+    has_position_limits: true
+    min_position: -0.8757
+    max_position: 0.8757
+  right_outer_knuckle_joint:
+    has_velocity_limits: true
+    max_velocity: 2.0
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+    has_position_limits: true
+    min_position: -0.8757
+    max_position: 0.8757
+  right_inner_knuckle_joint:
+    has_velocity_limits: true
+    max_velocity: 2.0
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+    has_position_limits: true
+    min_position: -0.8757
+    max_position: 0.8757
+  right_inner_finger_joint:
+    has_velocity_limits: true
+    max_velocity: 2.0
+    has_acceleration_limits: true
+    max_acceleration: 3.0
+    has_position_limits: true
+    min_position: -0.1
+    max_position: 0.8757

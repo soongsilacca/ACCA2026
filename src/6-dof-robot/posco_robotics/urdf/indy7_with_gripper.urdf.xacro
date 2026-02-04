@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="indy7_robotiq">
+  
+  <xacro:include filename="$(find posco_robotics)/urdf/indy7_macro.xacro"/>
+  <xacro:include filename="$(find posco_robotics)/urdf/robotiq_85_macro.xacro"/>
+  
+  <link name="world"/>
+  
+  <xacro:indy7 prefix=""/>
+  
+  <!-- Gripper attached to TCP -->
+  <xacro:robotiq_85_gripper prefix="" parent="tcp">
+    <origin xyz="0 0 0" rpy="0 0 0"/> 
+  </xacro:robotiq_85_gripper>
+  
+  <!-- Gripper ros2_control -->
+  <xacro:robotiq_85_ros2_control prefix=""/>
+
+</robot>
+
