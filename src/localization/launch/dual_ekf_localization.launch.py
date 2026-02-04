@@ -11,7 +11,8 @@ import os
 import yaml
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
@@ -19,6 +20,7 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     # Get share directory
     localization_share_dir = get_package_share_directory('localization')
+    fast_lio_share_dir = get_package_share_directory('fast_lio')
 
     # Config files
     ekf_local_config = os.path.join(
@@ -57,6 +59,36 @@ def generate_launch_description():
         default_value='false',
         description='Use simulation clock if true'
     )
+    
+    use_ndt_arg = DeclareLaunchArgument(
+        'use_ndt',
+        default_value='true',
+        description='Enable NDT localization'
+    )
+    
+    use_fastlio_arg = DeclareLaunchArgument(
+        'use_fastlio',
+        default_value='true',
+        description='Enable FAST-LIO integration'
+    )
+
+    fast_lio_config_path_arg = DeclareLaunchArgument(
+        'config_path',
+        default_value=os.path.join(fast_lio_share_dir, 'config'),
+        description='FAST-LIO config path'
+    )
+
+    fast_lio_config_file_arg = DeclareLaunchArgument(
+        'config_file',
+        default_value='velodyne.yaml',
+        description='FAST-LIO config file'
+    )
+    
+    config_path = LaunchConfiguration('config_path')
+    config_file = LaunchConfiguration('config_file')
+    
+    use_ndt = LaunchConfiguration('use_ndt')
+    use_fastlio = LaunchConfiguration('use_fastlio')
     
     # ============================================
     # Wheel Odometry Node
@@ -159,13 +191,7 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time}]
     )
     
-    imu_nwu_node = Node(
-        package='localization',
-        executable='imu_nwu_adapter',
-        name='imu_nwu_adapter_node',
-        output='screen',
-        parameters=[{'use_sim_time': use_sim_time}]
-    )
+
 
     odom_map_republisher_node = Node(
         package='localization',
@@ -186,7 +212,8 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time,
             'pcd_file': os.path.join(localization_share_dir, 'map', 'school.pcd')
-        }]
+        }],
+        condition=IfCondition(use_ndt)
     )
     
     # ============================================
@@ -200,7 +227,23 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time,
             'use_twist': False,  # Don't use twist (velocity) from FAST-LIO
-        }]
+        }],
+        condition=IfCondition(use_fastlio)
+    )
+
+    # ============================================
+    # FAST-LIO Mapping Node
+    # ============================================
+    fast_lio_node = Node(
+        package='fast_lio',
+        executable='fastlio_mapping',
+        name='fastlio_mapping_node',
+        output='screen',
+        parameters=[
+            PathJoinSubstitution([config_path, config_file]),
+            {'use_sim_time': use_sim_time, 'publish.tf': False}
+        ],
+        condition=IfCondition(use_fastlio)
     )
 
     # ============================================
@@ -217,7 +260,8 @@ def generate_launch_description():
             'ndt_step_size': 0.1,
             'scan_voxel_size': 0.3,
             'map_voxel_size': 0.5,
-        }]
+        }],
+        condition=IfCondition(use_ndt)
     )
     
     # ============================================
@@ -265,20 +309,27 @@ def generate_launch_description():
     return LaunchDescription([
         # Arguments
         use_sim_time_arg,
+        use_ndt_arg,
+        use_fastlio_arg,
+        fast_lio_config_path_arg,
+        fast_lio_config_file_arg,
         
         # Static TFs
         imu_tf_node,
         velodyne_tf_node,
         gps_tf_node,
         
-        # IMU Adapter (ENU -> NWU)
-        imu_nwu_node,
+        # IMU Adapter (ENU -> NWU) - REMOVED (Internal Logic Updated to ENU)
+        # imu_nwu_node,
         
         # Odom Map Aligner (Forces Map-Odom Orientation Alignment)
         odom_map_republisher_node,
         
         # PCD Map Publisher (Service-triggered)
         pcd_map_publisher_node,
+
+        # FAST-LIO Mapping Node
+        fast_lio_node,
         
         # FAST-LIO Odometry Adapter
         fastlio_adapter_node,

@@ -62,10 +62,11 @@ class EKFGlobalInitializer(Node):
             force_zone_number=self.utm_zone
         )
         
-        # Calculate offset from datum (NWU coordinates)
-        # X (North) = northing difference
-        x_offset = northing - self.datum_northing
-        # Y (West) = -easting difference
+        # Calculate offset from datum (ENU coordinates)
+        # X (East) = easting difference
+        x_offset = easting - self.datum_easting
+        # Y (North) = northing difference
+        y_offset = northing - self.datum_northing
         y_offset = -(easting - self.datum_easting)
         z_offset = 0.0  # Force 2D
         
@@ -93,8 +94,8 @@ class EKFGlobalInitializer(Node):
         self.initialized = True
         
         # Shutdown after initialization
-        self.get_logger().info('Initialization complete. Node shutting down.')
-        rclpy.shutdown()
+        self.get_logger().info('Initialization complete. Node staying alive to serve latched /initialpose.')
+        # rclpy.shutdown()
 
 
 def main(args=None):

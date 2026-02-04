@@ -47,10 +47,9 @@ class EKFLocalInitializer(Node):
         pose_msg.pose.pose.position.z = 0.0
         
         # Orientation from IMU (Robot's actual global heading)
-        # CONVERSION: User Map X = North (NWU frame)
-        # IMU is likely ENU (East=0, North=90) or Compass (North=0)
-        # Assuming ENU per typical ROS IMU:
-        # We need to subtract 90 degrees so that North (90) becomes 0 (X-axis)
+        # CONVERSION: User Map X = East (ENU frame)
+        # IMU is typically ENU (East=0, North=90) or Compass (North=0)
+        # If IMU is typically ENU (Zero at East, increase CCW), no conversion needed.
         
         # 1. Convert IMU quaternion to Yaw
         q_imu = msg.orientation
@@ -58,18 +57,19 @@ class EKFLocalInitializer(Node):
         cosy_cosp = 1.0 - 2.0 * (q_imu.y * q_imu.y + q_imu.z * q_imu.z)
         yaw_imu = math.atan2(siny_cosp, cosy_cosp)
         
-        # 2. Subtract 90 degrees (pi/2) for NWU alignment
-        yaw_nwu = yaw_imu - (math.pi / 2.0)
+        # 2. Use Yaw directly (ENU)
+        yaw_enu = yaw_imu
         
         # Normalize to -pi to pi
-        while yaw_nwu > math.pi:
-            yaw_nwu -= 2.0 * math.pi
-        while yaw_nwu < -math.pi:
-            yaw_nwu += 2.0 * math.pi
+        # Normalize to -pi to pi
+        while yaw_enu > math.pi:
+            yaw_enu -= 2.0 * math.pi
+        while yaw_enu < -math.pi:
+            yaw_enu += 2.0 * math.pi
             
         # 3. Convert back to Quaternion
-        cy = math.cos(yaw_nwu * 0.5)
-        sy = math.sin(yaw_nwu * 0.5)
+        cy = math.cos(yaw_enu * 0.5)
+        sy = math.sin(yaw_enu * 0.5)
         
         pose_msg.pose.pose.orientation.w = cy
         pose_msg.pose.pose.orientation.x = 0.0
@@ -90,7 +90,7 @@ class EKFLocalInitializer(Node):
         
         self.pub_set_pose.publish(pose_msg)
         
-        self.get_logger().info(f'Initialized EKF Local with yaw_nwu: {math.degrees(yaw_nwu):.2f}° (IMU was {math.degrees(yaw_imu):.2f}°)')
+        self.get_logger().info(f'Initialized EKF Local with yaw_enu: {math.degrees(yaw_enu):.2f}° (IMU was {math.degrees(yaw_imu):.2f}°)')
         
         self.initialized = True
         self.get_logger().info('Initialization complete. Node shutting down.')

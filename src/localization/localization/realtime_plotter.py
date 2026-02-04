@@ -32,7 +32,7 @@ class RealtimePlotter(Node):
         self.local_start = None
         
         # Subscriptions
-        self.create_subscription(Odometry, '/gps/odometry_nwu', self.gps_callback, 10)
+        self.create_subscription(Odometry, '/gps/odometry_enu', self.gps_callback, 10)
         self.create_subscription(Odometry, '/odometry/global', self.global_callback, 10)
         self.create_subscription(Odometry, '/odometry/local', self.local_callback, 10)
         

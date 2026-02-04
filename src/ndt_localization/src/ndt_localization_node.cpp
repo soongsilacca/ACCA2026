@@ -56,9 +56,9 @@ public:
             "/velodyne_points", 10,
             std::bind(&NDTLocalizationNode::scanCallback, this, std::placeholders::_1));
         
-        // Initial Pose Subscriber
+        // Initial Pose Subscriber (Must be TransientLocal to receive latched message)
         initial_pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-            "/initialpose", 1,
+            "/set_pose/global", rclcpp::QoS(1).transient_local(),
             std::bind(&NDTLocalizationNode::initialPoseCallback, this, std::placeholders::_1));
 
         // Use odometry for initial guess

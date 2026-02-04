@@ -38,7 +38,7 @@ class FastLIOOdometryAdapter(Node):
             Odometry, "/odometry/local", self.ekf_callback, 10
         )
         self.sub_imu = self.create_subscription(
-            Imu, "/imu/data_nwu", self.imu_callback, 10
+            Imu, "/imu/data", self.imu_callback, 10
         )
         
         self.pub_aligned = self.create_publisher(Odometry, "/fastlio/odom_aligned", 10)
@@ -60,7 +60,7 @@ class FastLIOOdometryAdapter(Node):
         self.ekf_yaw = yaw
         
         if not self.offset_initialized:
-            self.get_logger().info(f"IMU initial yaw: {math.degrees(yaw):.2f}°")
+            # self.get_logger().info(f"IMU initial yaw: {math.degrees(yaw):.2f}°")
             self.try_initialize()
         
     
@@ -76,7 +76,7 @@ class FastLIOOdometryAdapter(Node):
         
         # Initial initialization
         if not self.offset_initialized:
-            self.get_logger().info(f"EKF initial yaw: {math.degrees(yaw):.2f}°")
+            # self.get_logger().info(f"EKF initial yaw: {math.degrees(yaw):.2f}°")
             self.try_initialize()
             return
 

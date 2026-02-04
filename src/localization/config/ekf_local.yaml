@@ -37,7 +37,7 @@ ekf_local_node:
     # ============================================
     # IMU Configuration (imu0)
     # ============================================
-    imu0: /imu/data_nwu
+    imu0: /imu/data
     imu0_config: [false, false, false,
                   false, false, true,    # don't fuse yaw (already in wheel odom)
                   false, false, false,

@@ -44,7 +44,7 @@ class GPSToOdometry(Node):
         self.sub_gps = self.create_subscription(
             NavSatFix, "/ublox_gps_node/fix", self.gps_callback, 10
         )
-        self.pub_odom = self.create_publisher(Odometry, "/gps/odometry_nwu", 10)
+        self.pub_odom = self.create_publisher(Odometry, "/gps/odometry_enu", 10)
 
         self.get_logger().info(f"GPS to Odometry Converter Started (UTM)")
         self.get_logger().info(f"Datum: {self.datum_lat:.6f}°N, {self.datum_lon:.6f}°E")
@@ -68,11 +68,11 @@ class GPSToOdometry(Node):
             force_zone_number=self.utm_zone
         )
 
-        # Calculate offset from datum (NWU coordinates)
-        # X (North) = northing difference
-        x_pos = northing - self.datum_northing
-        # Y (West) = -easting difference (NWU convention)
-        y_pos = -(easting - self.datum_easting)
+        # Calculate offset from datum (ENU coordinates)
+        # X (East) = easting difference
+        x_pos = easting - self.datum_easting
+        # Y (North) = northing difference
+        y_pos = northing - self.datum_northing
         z_pos = 0.0  # Force 2D
 
         # Create Odometry message
@@ -128,10 +128,10 @@ class GPSToOdometry(Node):
                 odom.pose.covariance[35] = 1000.0
 
         # Covariance (Use GPS reported covariance)
-        # NavSatFix covariance: [lat, lon, alt] (ENU)
-        # Map to NWU: x (North) = lat, y (West) = lon
-        odom.pose.covariance[0] = msg.position_covariance[0]  # x (North) from lat variance
-        odom.pose.covariance[7] = msg.position_covariance[4]  # y (West) from lon variance  
+        # NavSatFix covariance: [lat, lon, alt] (ENU-like but usually local tangent plane approximation)
+        # Map to ENU: x (East) = lon, y (North) = lat
+        odom.pose.covariance[0] = msg.position_covariance[4]  # x (East) from lon variance
+        odom.pose.covariance[7] = msg.position_covariance[0]  # y (North) from lat variance  
         odom.pose.covariance[14] = msg.position_covariance[8] # z (Up) from alt variance
         
         self.pub_odom.publish(odom)

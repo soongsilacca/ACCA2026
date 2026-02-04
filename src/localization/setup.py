@@ -27,7 +27,7 @@ setup(
             'gps_to_odometry = localization.gps_to_odometry:main',
             'ekf_global_initializer = localization.ekf_global_initializer:main',
             'ekf_local_initializer = localization.ekf_local_initializer:main',
-            'imu_nwu_adapter = localization.imu_nwu_adapter:main',
+
             'odom_map_republisher = localization.odom_map_republisher:main',
             'wheel_odometry_erp = localization.wheel_odometry_erp:main',
             'rmse_analyzer = localization.rmse_analyzer:main',
