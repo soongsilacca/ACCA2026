@@ -378,7 +378,7 @@
   
   <!-- Gazebo Grasp Fix Plugin - Model Plugin -->
   <gazebo>
-    <plugin name="gazebo_grasp_fix" filename="/home/jinju/ws_2026/install/gazebo_grasp_plugin/lib/libgazebo_grasp_fix.so">
+    <plugin name="gazebo_grasp_fix" filename="libgazebo_grasp_fix.so">
       <arm>
         <arm_name>indy7</arm_name>
         <palm_link>link6</palm_link>
