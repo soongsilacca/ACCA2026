@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <Fallback name="MainLogic">
+      <Sequence name="SafetySequence">
+        <IsObstacleDetected dist_threshold="3.0"/>
+        <StopVehicle/>
+      </Sequence>
+      <Sequence name="StopLineSequence">
+        <IsStopLineDetected distance_threshold="1.0"/>
+        <StopVehicle/>
+        <WaitDuration msec="3000"/>
+        <DriveForwardDuration seconds="3.0" speed="0.5"/>
+      </Sequence>
+      <Sequence name="ParkingSequence">
+        <IsNearParkingZone/>
+        <StopVehicle/>
+        <StartPythonParking/> 
+      </Sequence>
+      <FollowPath/>
+      <Sequence name="EmergencyAction">
+        <StopVehicle/>
+        <PrintLog message="[비상] 모든 주행 실패! 로봇을 정지합니다."/>
+        <WaitDuration msec="1000"/>
+      </Sequence>
+    </Fallback>
+  </BehaviorTree>
+
+  <TreeNodesModel>
+    <Action ID="StartPythonParking" editable="true"/>
+    <Action ID="DriveForwardDuration" editable="true">
+      <input_port name="seconds"/>
+      <input_port name="speed"/>
+    </Action>
+    <Condition ID="CheckParkingAvailability" editable="true">
+      <input_port name="parking_id"/>
+    </Condition>
+    <Action ID="ExecuteAutoParking" editable="true">
+      <input_port name="parking_id"/>
+    </Action>
+    <Action ID="VehicleManeuver" editable="true">
+      <input_port name="seconds"/>
+      <input_port name="speed"/>
+      <input_port name="steer_deg"/>
+      <input_port name="gear"/>
+    </Action>
+    <Action ID="FollowPath" editable="true"/>
+
+    <Condition ID="IsNearParkingZone" editable="true"/>
+
+    <Action ID="IsObstacleDetected" editable="true">
+      <input_port name="dist_threshold"/>
+    </Action>
+    <Action ID="IsStopLineDetected" editable="true">
+      <input_port name="distance_threshold"/>
+    </Action>
+    <Action ID="PrintLog" editable="true">
+      <input_port name="message"/>
+    </Action>
+    <Action ID="StopVehicle" editable="true"/>
+    
+    <Action ID="WaitDuration" editable="true">
+      <input_port name="msec"/>
+    </Action>
+  </TreeNodesModel>
+</root>

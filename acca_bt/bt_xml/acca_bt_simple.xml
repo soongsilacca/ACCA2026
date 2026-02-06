@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4">
+  <BehaviorTree ID="MainTree">
+    <Fallback name="MainLogic">
+      <!-- 1. Obstacle Detection (Safety First) -->
+      <Sequence name="SafetySequence">
+        <IsObstacleDetected dist_threshold="3.0"/>
+        <StopVehicle/>
+      </Sequence>
+      
+      <!-- 2. Stop Line Handling -->
+      <Sequence name="StopLineSequence">
+        <IsStopLineDetected distance_threshold="1.0"/>
+        <StopVehicle/>
+        <WaitDuration msec="3000"/>
+        <DriveForwardDuration seconds="3.0" speed="5.0"/>
+      </Sequence>
+      
+      <!-- 3. Normal Driving (Follow Path) -->
+      <FollowPath/>
+      
+      <!-- 4. Default Emergency Stop --> <!-- gps공분산이 튈 경우,센서가 잘 안될 경우 이러한 조건으로 대체해서 Follow Path에 추가 -->
+      <Sequence name="EmergencyAction">
+        <StopVehicle/>
+        <PrintLog message="[ERROR] All driving logic failed!"/>
+        <WaitDuration msec="1000"/>
+      </Sequence>
+    </Fallback>
+  </BehaviorTree>
+
+  <TreeNodesModel>
+    <Action ID="DriveForwardDuration" editable="true">
+      <input_port name="seconds"/>
+      <input_port name="speed"/>
+    </Action>
+    <Action ID="FollowPath" editable="true"/>
+    <Action ID="IsObstacleDetected" editable="true">
+      <input_port name="dist_threshold"/>
+    </Action>
+    <Action ID="IsStopLineDetected" editable="true">
+      <input_port name="distance_threshold"/>
+    </Action>
+    <Action ID="PrintLog" editable="true">
+      <input_port name="message"/>
+    </Action>
+    <Action ID="StopVehicle" editable="true"/>
+    <Action ID="WaitDuration" editable="true">
+      <input_port name="msec"/>
+    </Action>
+  </TreeNodesModel>
+</root>
