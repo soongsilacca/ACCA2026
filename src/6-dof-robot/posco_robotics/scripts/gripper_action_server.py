@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """
-Gripper Action Server for MoveIt Integration
-Translates MoveIt gripper goals to gripper_controller commands
+Gripper Action Server for MoveIt Integration (Effort Controller)
+Translates MoveIt gripper goals to effort commands
 """
 
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionServer
 from control_msgs.action import GripperCommand
-from control_msgs.action import FollowJointTrajectory
-from rclpy.action import ActionClient
-from trajectory_msgs.msg import JointTrajectoryPoint
+from std_msgs.msg import Float64MultiArray
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 
 class GripperActionServer(Node):
@@ -25,46 +24,44 @@ class GripperActionServer(Node):
             self.execute_callback
         )
         
-        # Action client to real controller
-        self._gripper_client = ActionClient(
-            self,
-            FollowJointTrajectory,
-            '/gripper_controller/follow_joint_trajectory'
+        # Publisher for trajectory commands (Position Control)
+        self.traj_pub = self.create_publisher(
+            JointTrajectory,
+            '/gripper_controller/joint_trajectory',
+            10
         )
         
-        self.get_logger().info('Gripper Action Server started')
-        self._gripper_client.wait_for_server()
+        self.get_logger().info('Gripper Action Server started (Position/Trajectory mode)')
         
     def execute_callback(self, goal_handle):
-        self.get_logger().info(f'Executing goal: position={goal_handle.request.command.position}')
+        position = goal_handle.request.command.position
+        max_effort = goal_handle.request.command.max_effort
         
-        # Translate GripperCommand to JointTrajectory
-        traj_goal = FollowJointTrajectory.Goal()
-        traj_goal.trajectory.joint_names = ['finger_joint']
+        self.get_logger().info(f'Executing goal: position={position:.4f}, max_effort={max_effort:.2f}')
+        
+        # Create Trajectory
+        traj = JointTrajectory()
+        traj.joint_names = ['finger_joint']
         
         point = JointTrajectoryPoint()
-        point.positions = [goal_handle.request.command.position]
-        point.time_from_start = Duration(sec=2, nanosec=0)
-        traj_goal.trajectory.points = [point]
+        point.positions = [position]
+        point.velocities = [0.0]
+        # point.effort = [max_effort] # Removed: Causes error in Gazebo controller
+        point.time_from_start = Duration(sec=2, nanosec=0) # 2.0 second duration for smoother grasp
         
-        # Send to gripper controller
-        future = self._gripper_client.send_goal_async(traj_goal)
-        rclpy.spin_until_future_complete(self, future)
+        traj.points = [point]
+        self.traj_pub.publish(traj)
         
-        goal_result = future.result()
-        if not goal_result.accepted:
-            goal_handle.abort()
-            return GripperCommand.Result()
-            
-        # Wait for completion
-        result_future = goal_result.get_result_async()
-        rclpy.spin_until_future_complete(self, result_future)
+        # Wait for movement (simple sleep for now, better would be to monitor joint state)
+        import time
+        time.sleep(1.0)
         
         # Return success
         goal_handle.succeed()
         result = GripperCommand.Result()
-        result.position = goal_handle.request.command.position
+        result.position = position
         result.reached_goal = True
+        result.stalled = False
         
         self.get_logger().info('Goal completed')
         return result

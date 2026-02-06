@@ -14,16 +14,17 @@ install(DIRECTORY
   meshes
   rviz
   models
+  worlds
   DESTINATION share/${PROJECT_NAME}
 )
 
 
 
 install(PROGRAMS
-  scripts/pick_and_place.py
-  scripts/collision_monitor.py
   scripts/mimic_joint_plugin.py
   scripts/gripper_action_server.py
+  scripts/scene_loader.py
+  scripts/gripper_grasp_controller.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

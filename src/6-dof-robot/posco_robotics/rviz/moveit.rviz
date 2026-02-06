@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /TF1
       Splitter Ratio: 0.5
     Tree Height: 298
   - Class: rviz_common/Selection
@@ -43,19 +44,76 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Value: true
     - Class: rviz_default_plugins/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: true
-      Marker Scale: 1
+        left_inner_finger:
+          Value: true
+        left_inner_knuckle:
+          Value: true
+        left_outer_finger:
+          Value: true
+        left_outer_knuckle:
+          Value: true
+        link0:
+          Value: true
+        link1:
+          Value: true
+        link2:
+          Value: true
+        link3:
+          Value: true
+        link4:
+          Value: true
+        link5:
+          Value: true
+        link6:
+          Value: true
+        right_inner_finger:
+          Value: true
+        right_inner_knuckle:
+          Value: true
+        right_outer_finger:
+          Value: true
+        right_outer_knuckle:
+          Value: true
+        robotiq_85_base_link:
+          Value: true
+        tcp:
+          Value: true
+        world:
+          Value: true
+      Marker Scale: 0.20000000298023224
       Name: TF
       Show Arrows: true
       Show Axes: true
-      Show Names: false
+      Show Names: true
       Tree:
-        {}
+        world:
+          link0:
+            link1:
+              link2:
+                link3:
+                  link4:
+                    link5:
+                      link6:
+                        tcp:
+                          robotiq_85_base_link:
+                            left_inner_knuckle:
+                              left_inner_finger:
+                                {}
+                            left_outer_knuckle:
+                              left_outer_finger:
+                                {}
+                            right_inner_knuckle:
+                              right_inner_finger:
+                                {}
+                            right_outer_knuckle:
+                              right_outer_finger:
+                                {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Acceleration_Scaling_Factor: 1
       Class: moveit_rviz_plugin/MotionPlanning
       Enabled: true
@@ -314,6 +372,19 @@ Visualization Manager:
         Show Robot Visual: true
       Value: true
       Velocity_Scaling_Factor: 1
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        red_box: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /visualization_marker
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -360,25 +431,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 3
+      Distance: 0.8116135597229004
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.2543310225009918
-        Y: -0.008111017756164074
-        Z: 0.4524558186531067
+        X: 0.5036873817443848
+        Y: -0.04908769577741623
+        Z: 0.04386316239833832
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.440000057220459
+      Pitch: 0.16999994218349457
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.768584251403809
+      Yaw: 4.958563804626465
     Saved: ~
 Window Geometry:
   Displays:
@@ -398,5 +469,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1413
-  X: 370
+  X: 185
   Y: 27

@@ -54,8 +54,9 @@ gripper_controller:
       - velocity
     state_publish_rate: 50.0
     action_monitor_rate: 20.0
+    allow_partial_joints_goal: true
     gains:
-      finger_joint: {p: 100.0, i: 0.0, d: 10.0}
+      finger_joint: {p: 50.0, i: 0.0, d: 5.0}
 
 mimic_joint_controller:
   ros__parameters:

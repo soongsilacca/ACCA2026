@@ -13,8 +13,5 @@
     <origin xyz="0 0 0" rpy="0 0 0"/> 
   </xacro:robotiq_85_gripper>
   
-  <!-- Gripper ros2_control -->
-  <xacro:robotiq_85_ros2_control prefix=""/>
-
 </robot>
 

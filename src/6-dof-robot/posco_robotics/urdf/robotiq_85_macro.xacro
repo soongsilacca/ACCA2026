@@ -152,7 +152,7 @@
         </geometry>
         <material name="grey"/>
       </visual>
-      <collision>
+      <collision name="${prefix}left_inner_finger_collision">
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
           <mesh filename="package://posco_robotics/meshes/robotiq_85/inner_finger_coarse.STL" />
@@ -162,6 +162,24 @@
     
     <gazebo reference="${prefix}left_inner_finger">
       <material>Gazebo/DarkGrey</material>
+      <mu1>1.0</mu1>
+      <mu2>1.0</mu2>
+      <kp>100000.0</kp>
+      <kd>100.0</kd>
+      <sensor name="${prefix}left_finger_contact_sensor" type="contact">
+        <always_on>true</always_on>
+        <update_rate>100.0</update_rate>
+        <contact>
+          <collision>left_inner_finger_collision_collision</collision>
+        </contact>
+        <plugin filename="libgazebo_ros_bumper.so" name="${prefix}left_finger_bumper">
+          <ros>
+            <namespace>indy7</namespace>
+            <remapping>bumper_states:=/indy7/contact_sensor</remapping>
+          </ros>
+          <frame_name>${prefix}left_inner_finger</frame_name>
+        </plugin>
+      </sensor>
     </gazebo>
 
     <joint name="${prefix}left_inner_finger_joint" type="revolute">
@@ -222,7 +240,7 @@
         </geometry>
         <material name="grey"/>
       </visual>
-      <collision>
+      <collision name="${prefix}right_inner_finger_collision">
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
           <mesh filename="package://posco_robotics/meshes/robotiq_85/inner_finger_coarse.STL" />
@@ -232,6 +250,24 @@
     
     <gazebo reference="${prefix}right_inner_finger">
       <material>Gazebo/DarkGrey</material>
+      <mu1>1.0</mu1>
+      <mu2>1.0</mu2>
+      <kp>100000.0</kp>
+      <kd>100.0</kd>
+      <sensor name="${prefix}right_finger_contact_sensor" type="contact">
+        <always_on>true</always_on>
+        <update_rate>100.0</update_rate>
+        <contact>
+          <collision>right_inner_finger_collision_collision</collision>
+        </contact>
+        <plugin filename="libgazebo_ros_bumper.so" name="${prefix}right_finger_bumper">
+          <ros>
+            <namespace>indy7</namespace>
+            <remapping>bumper_states:=/indy7/contact_sensor</remapping>
+          </ros>
+          <frame_name>${prefix}right_inner_finger</frame_name>
+        </plugin>
+      </sensor>
     </gazebo>
 
     <joint name="${prefix}right_inner_finger_joint" type="revolute">
@@ -311,68 +347,6 @@
       <axis xyz="0 1 0" />
     </joint>
 
-  </xacro:macro>
-
-  <!-- ros2_control for gripper -->
-  <xacro:macro name="robotiq_85_ros2_control" params="prefix">
-    <ros2_control name="${prefix}gripper" type="system">
-      <hardware>
-        <plugin>gazebo_ros2_control/GazeboSystem</plugin>
-      </hardware>
-      <joint name="${prefix}finger_joint">
-        <command_interface name="position">
-          <param name="min">0</param>
-          <param name="max">0.725</param>
-        </command_interface>
-        <state_interface name="position">
-          <param name="initial_value">0.0</param>
-        </state_interface>
-        <state_interface name="velocity"/>
-        <state_interface name="effort"/>
-      </joint>
-        
-        <!-- Mimic joints for controller -->
-        <joint name="${prefix}left_inner_knuckle_joint">
-          <command_interface name="position"/>
-          <state_interface name="position">
-            <param name="initial_value">0.0</param>
-          </state_interface>
-          <state_interface name="velocity"/>
-          <state_interface name="effort"/>
-        </joint>
-        <joint name="${prefix}left_inner_finger_joint">
-          <command_interface name="position"/>
-          <state_interface name="position">
-            <param name="initial_value">0.0</param>
-          </state_interface>
-          <state_interface name="velocity"/>
-          <state_interface name="effort"/>
-        </joint>
-        <joint name="${prefix}right_outer_knuckle_joint">
-          <command_interface name="position"/>
-          <state_interface name="position">
-            <param name="initial_value">0.0</param>
-          </state_interface>
-          <state_interface name="velocity"/>
-          <state_interface name="effort"/>
-        </joint>
-        <joint name="${prefix}right_inner_knuckle_joint">
-          <command_interface name="position"/>
-          <state_interface name="position">
-            <param name="initial_value">0.0</param>
-          </state_interface>
-          <state_interface name="velocity"/>
-          <state_interface name="effort"/>
-        </joint>
-        <joint name="${prefix}right_inner_finger_joint">
-          <command_interface name="position"/>
-          <state_interface name="position">
-            <param name="initial_value">0.0</param>
-          </state_interface>
-          <state_interface name="velocity"/>
-          <state_interface name="effort"/>
-        </joint>
-      </ros2_control>
   </xacro:macro>
 
   <!-- Gazebo Mimic Joint Plugins -->

@@ -15,8 +15,8 @@ arm_controller:
     - joint5
 
 gripper_controller:
-  action_ns: follow_joint_trajectory
-  type: FollowJointTrajectory
+  action_ns: gripper_cmd
+  type: GripperCommand
   default: true
   joints:
     - finger_joint

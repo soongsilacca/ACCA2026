@@ -200,7 +200,7 @@
     <dynamics damping="0.1" friction="10.0"/>
     <limit effort="79.79" lower="-3.7524578917878086" upper="3.7524578917878086" velocity="3.141592653589793"/>
   </joint>
-  <joint name="${prefix}tcp" type="fixed">
+  <joint name="${prefix}tcp_fixed_joint" type="fixed">
     <parent link="${prefix}link6"/>
     <child link="${prefix}tcp"/>
     <origin rpy="0.0                         0.0                         0.0" xyz="0.0                          0.0                          0.06"/>
@@ -312,12 +312,86 @@
       </state_interface>
       <state_interface name="effort"/>
     </joint>
+    
+    <!-- Gripper joints -->
+    <joint name="finger_joint">
+      <command_interface name="position">
+        <param name="min">0</param>
+        <param name="max">0.725</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+    
+    <!-- Mimic joints -->
+    <joint name="left_inner_knuckle_joint">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+    <joint name="left_inner_finger_joint">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+    <joint name="right_outer_knuckle_joint">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+    <joint name="right_inner_knuckle_joint">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+    <joint name="right_inner_finger_joint">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">0.0</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
   </ros2_control>
 
   <!-- Gazebo ros2_control plugin -->
   <gazebo>
     <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
       <parameters>$(find posco_robotics)/config/ros2_controllers.yaml</parameters>
+    </plugin>
+  </gazebo>
+  
+  <!-- Gazebo Grasp Fix Plugin - Model Plugin -->
+  <gazebo>
+    <plugin name="gazebo_grasp_fix" filename="/home/jinju/ws_2026/install/gazebo_grasp_plugin/lib/libgazebo_grasp_fix.so">
+      <arm>
+        <arm_name>indy7</arm_name>
+        <palm_link>link6</palm_link>
+        <gripper_link>left_inner_finger</gripper_link>
+        <gripper_link>right_inner_finger</gripper_link>
+      </arm>
+      <forces_angle_tolerance>100</forces_angle_tolerance>
+      <update_rate>100</update_rate>
+      <grip_count_threshold>3</grip_count_threshold>
+      <max_grip_count>10</max_grip_count>
+      <release_tolerance>0.01</release_tolerance>
+      <disable_collisions_on_attach>false</disable_collisions_on_attach>
+      <contact_topic>__default_topic__</contact_topic>
     </plugin>
   </gazebo>
 
@@ -333,120 +407,36 @@
     <kp>1000000.0</kp>
     <kd>100.0</kd>
     <minDepth>0.001</minDepth>
-    <sensor name="${prefix}link1_contact_sensor" type="contact">
-      <always_on>true</always_on>
-      <update_rate>100.0</update_rate>
-      <contact>
-        <collision>${prefix}link1_fixed_joint_lump__${prefix}link1_collision</collision>
-      </contact>
-      <plugin filename="libgazebo_ros_bumper.so" name="${prefix}link1_bumper">
-        <ros>
-          <namespace>indy7</namespace>
-          <remapping>bumper_states:=/${prefix}contact_sensor</remapping>
-        </ros>
-        <frame_name>${prefix}link1</frame_name>
-      </plugin>
-    </sensor>
   </gazebo>
   <gazebo reference="${prefix}link2">
     <material>Gazebo/White</material>
     <kp>1000000.0</kp>
     <kd>100.0</kd>
     <minDepth>0.001</minDepth>
-    <sensor name="${prefix}link2_contact_sensor" type="contact">
-      <always_on>true</always_on>
-      <update_rate>100.0</update_rate>
-      <contact>
-        <collision>${prefix}link2_fixed_joint_lump__${prefix}link2_collision</collision>
-      </contact>
-      <plugin filename="libgazebo_ros_bumper.so" name="${prefix}link2_bumper">
-        <ros>
-          <namespace>indy7</namespace>
-          <remapping>bumper_states:=/${prefix}contact_sensor</remapping>
-        </ros>
-        <frame_name>${prefix}link2</frame_name>
-      </plugin>
-    </sensor>
   </gazebo>
   <gazebo reference="${prefix}link3">
     <material>Gazebo/White</material>
     <kp>1000000.0</kp>
     <kd>100.0</kd>
     <minDepth>0.001</minDepth>
-    <sensor name="${prefix}link3_contact_sensor" type="contact">
-      <always_on>true</always_on>
-      <update_rate>100.0</update_rate>
-      <contact>
-        <collision>${prefix}link3_fixed_joint_lump__${prefix}link3_collision</collision>
-      </contact>
-      <plugin filename="libgazebo_ros_bumper.so" name="${prefix}link3_bumper">
-        <ros>
-          <namespace>indy7</namespace>
-          <remapping>bumper_states:=/${prefix}contact_sensor</remapping>
-        </ros>
-        <frame_name>${prefix}link3</frame_name>
-      </plugin>
-    </sensor>
   </gazebo>
   <gazebo reference="${prefix}link4">
     <material>Gazebo/White</material>
     <kp>1000000.0</kp>
     <kd>100.0</kd>
     <minDepth>0.001</minDepth>
-    <sensor name="${prefix}link4_contact_sensor" type="contact">
-      <always_on>true</always_on>
-      <update_rate>100.0</update_rate>
-      <contact>
-        <collision>${prefix}link4_fixed_joint_lump__${prefix}link4_collision</collision>
-      </contact>
-      <plugin filename="libgazebo_ros_bumper.so" name="${prefix}link4_bumper">
-        <ros>
-          <namespace>indy7</namespace>
-          <remapping>bumper_states:=/${prefix}contact_sensor</remapping>
-        </ros>
-        <frame_name>${prefix}link4</frame_name>
-      </plugin>
-    </sensor>
   </gazebo>
   <gazebo reference="${prefix}link5">
     <material>Gazebo/White</material>
     <kp>1000000.0</kp>
     <kd>100.0</kd>
     <minDepth>0.001</minDepth>
-    <sensor name="${prefix}link5_contact_sensor" type="contact">
-      <always_on>true</always_on>
-      <update_rate>100.0</update_rate>
-      <contact>
-        <collision>${prefix}link5_fixed_joint_lump__${prefix}link5_collision</collision>
-      </contact>
-      <plugin filename="libgazebo_ros_bumper.so" name="${prefix}link5_bumper">
-        <ros>
-          <namespace>indy7</namespace>
-          <remapping>bumper_states:=/${prefix}contact_sensor</remapping>
-        </ros>
-        <frame_name>${prefix}link5</frame_name>
-      </plugin>
-    </sensor>
   </gazebo>
   <gazebo reference="${prefix}link6">
     <material>Gazebo/White</material>
     <kp>1000000.0</kp>
     <kd>100.0</kd>
     <minDepth>0.001</minDepth>
-    <sensor name="${prefix}link6_contact_sensor" type="contact">
-      <always_on>true</always_on>
-      <update_rate>100.0</update_rate>
-      <contact>
-        <collision>${prefix}link6_fixed_joint_lump__${prefix}link6_collision</collision>
-      </contact>
-      <plugin filename="libgazebo_ros_bumper.so" name="${prefix}link6_bumper">
-        <ros>
-          <namespace>indy7</namespace>
-          <remapping>bumper_states:=/${prefix}contact_sensor</remapping>
-        </ros>
-        <frame_name>${prefix}link6</frame_name>
-      </plugin>
-    </sensor>
   </gazebo>
 
   </xacro:macro>
