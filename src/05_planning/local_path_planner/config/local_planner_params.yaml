@@ -1,0 +1,20 @@
+# Local Path Planner Configuration
+# Architecture: Autoware MGeo Link-Aware Lane Change Avoidance & Dynamic Velocity Profiling
+
+planning:
+  horizon_dist: 50.0          # Local planning horizon distance (m)
+  step_size: 0.5              # Waypoint resolution (m)
+  max_speed_kmh: 40.0         # Maximum cruise speed (km/h)
+  min_speed_kmh: 10.0         # Minimum curve speed (km/h)
+  max_lat_accel: 2.0          # Maximum lateral acceleration limit (m/s^2)
+  max_offset_rate: 0.20       # Maximum lateral transition rate per planning cycle (m/cycle)
+  publish_rate: 10.0          # Planning loop frequency (Hz)
+  frame_id: "map"
+
+rollouts:
+  enable_avoidance: true      # Enable MGeo link-aware lane change avoidance
+  safety_margin: 1.4          # Vehicle clearance safety margin (m)
+
+acc:
+  min_stop_dist: 4.5          # Safe stopping distance in front of obstacle (m)
+  max_decel: 2.5              # Maximum comfortable deceleration (m/s^2)

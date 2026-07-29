@@ -1,0 +1,593 @@
+// Copyright 2023 TIER IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef AUTOWARE__BEHAVIOR_PATH_STATIC_OBSTACLE_AVOIDANCE_MODULE__SCENE_HPP_
+#define AUTOWARE__BEHAVIOR_PATH_STATIC_OBSTACLE_AVOIDANCE_MODULE__SCENE_HPP_
+
+#include "autoware/behavior_path_planner_common/interface/scene_module_interface.hpp"
+#include "autoware/behavior_path_planner_common/interface/scene_module_visitor.hpp"
+#include "autoware/behavior_path_planner_common/utils/path_safety_checker/safety_check.hpp"
+#include "autoware/behavior_path_static_obstacle_avoidance_module/data_structs.hpp"
+#include "autoware/behavior_path_static_obstacle_avoidance_module/helper.hpp"
+#include "autoware/behavior_path_static_obstacle_avoidance_module/shift_line_generator.hpp"
+#include "autoware/behavior_path_static_obstacle_avoidance_module/type_alias.hpp"
+
+#include <autoware_utils_geometry/geometry.hpp>
+#include <rclcpp/logging.hpp>
+#include <rclcpp/node.hpp>
+#include <rclcpp/time.hpp>
+
+#include <limits>
+#include <memory>
+#include <optional>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+namespace autoware::behavior_path_planner
+{
+
+using helper::static_obstacle_avoidance::AvoidanceHelper;
+using tier4_planning_msgs::msg::AvoidanceDebugMsg;
+
+class StaticObstacleAvoidanceModule : public SceneModuleInterface
+{
+public:
+  StaticObstacleAvoidanceModule(
+    const std::string & name, rclcpp::Node & node, std::shared_ptr<AvoidanceParameters> parameters,
+    const std::unordered_map<std::string, std::shared_ptr<RTCInterface>> & rtc_interface_ptr_map,
+    std::unordered_map<std::string, std::shared_ptr<ObjectsOfInterestMarkerInterface>> &
+      objects_of_interest_marker_interface_ptr_map,
+    const std::shared_ptr<PlanningFactorInterface> & planning_factor_interface);
+
+  CandidateOutput planCandidate() const override;
+  BehaviorModuleOutput plan() override;
+  BehaviorModuleOutput planWaitingApproval() override;
+  bool isExecutionRequested() const override;
+  bool isExecutionReady() const override;
+  void processOnEntry() override;
+  void processOnExit() override;
+  void updateData() override;
+  void acceptVisitor(const std::shared_ptr<SceneModuleVisitor> & visitor) const override;
+
+  void updateModuleParams(const std::any & parameters) override
+  {
+    parameters_ = std::any_cast<std::shared_ptr<AvoidanceParameters>>(parameters);
+  }
+  std::shared_ptr<AvoidanceDebugMsgArray> get_debug_msg_array() const;
+
+private:
+  ModuleStatus setInitState() const override { return ModuleStatus::WAITING_APPROVAL; };
+
+  /**
+   * @brief return the result whether the module can stop path generation process.
+   * @param avoidance data.
+   * @return it will return AvoidanceState::RUNNING when there are obstacles ego should avoid.
+   *         it will return AvoidanceState::CANCEL when all obstacles have gone.
+   *         it will return AvoidanceState::SUCCEEDED when the ego avoid all obstacles.
+   */
+  AvoidanceState getCurrentModuleState(const AvoidancePlanningData & data) const;
+
+  bool canTransitSuccessState() override;
+
+  bool canTransitFailureState() override { return false; }
+
+  /**
+   * @brief update RTC status for candidate shift line.
+   * @param candidate path.
+   */
+  void updateCandidateRTCStatus(const CandidateOutput & candidate)
+  {
+    if (candidate.lateral_shift > 0.0) {
+      rtc_interface_ptr_map_.at("left")->updateCooperateStatus(
+        uuid_map_.at("left"), isExecutionReady(), State::WAITING_FOR_EXECUTION,
+        candidate.start_distance_to_path_change, candidate.finish_distance_to_path_change,
+        clock_->now(), avoid_data_.request_operator);
+      candidate_uuid_ = uuid_map_.at("left");
+      return;
+    }
+    if (candidate.lateral_shift < 0.0) {
+      rtc_interface_ptr_map_.at("right")->updateCooperateStatus(
+        uuid_map_.at("right"), isExecutionReady(), State::WAITING_FOR_EXECUTION,
+        candidate.start_distance_to_path_change, candidate.finish_distance_to_path_change,
+        clock_->now(), avoid_data_.request_operator);
+      candidate_uuid_ = uuid_map_.at("right");
+      return;
+    }
+
+    RCLCPP_WARN_STREAM(
+      getLogger(),
+      "Direction is UNKNOWN, start_distance = " << candidate.start_distance_to_path_change);
+  }
+
+  /**
+   * @brief update RTC status for approved shift line.
+   * @param approved avoidance path.
+   */
+  void updateRegisteredRTCStatus(const PathWithLaneId & path)
+  {
+    // NOTE(odashima): Prevent duplication of control points of PlanningFactor.
+    const auto filter_close_shift_lines =
+      [](const RegisteredShiftLineArray & shift_lines) -> RegisteredShiftLineArray {
+      constexpr double distance_threshold = 0.05;
+      RegisteredShiftLineArray filtered_lines;
+
+      for (size_t i = 0; i < shift_lines.size(); ++i) {
+        const auto & current_line = shift_lines.at(i);
+        bool should_keep = true;
+
+        for (size_t j = i + 1; j < shift_lines.size(); ++j) {
+          const auto & next_line = shift_lines.at(j);
+
+          const double start_distance =
+            autoware_utils_geometry::calc_distance2d(current_line.start_pose, next_line.start_pose);
+          const double finish_distance = autoware_utils_geometry::calc_distance2d(
+            current_line.finish_pose, next_line.finish_pose);
+
+          if (start_distance < distance_threshold && finish_distance < distance_threshold) {
+            should_keep = false;
+            break;
+          }
+        }
+
+        if (should_keep) {
+          filtered_lines.push_back(current_line);
+        }
+      }
+
+      return filtered_lines;
+    };
+
+    const auto filtered_right_shifts = filter_close_shift_lines(right_shift_array_);
+    const auto filtered_left_shifts = filter_close_shift_lines(left_shift_array_);
+
+    const auto ego_idx = planner_data_->findEgoIndex(path.points);
+
+    for (const auto & left_shift : filtered_left_shifts) {
+      const double start_distance = autoware::motion_utils::calcSignedArcLength(
+        path.points, ego_idx, left_shift.start_pose.position);
+      const double finish_distance = start_distance + left_shift.relative_longitudinal;
+      const auto start_idx =
+        autoware::motion_utils::findNearestIndex(path.points, left_shift.start_pose.position);
+      const auto finish_idx =
+        autoware::motion_utils::findNearestIndex(path.points, left_shift.finish_pose.position);
+      const double start_velocity = path.points.at(start_idx).point.longitudinal_velocity_mps;
+      const double end_velocity = path.points.at(finish_idx).point.longitudinal_velocity_mps;
+
+      // If force activated keep safety to false
+      if (rtc_interface_ptr_map_.at("left")->isForceActivated(left_shift.uuid)) {
+        rtc_interface_ptr_map_.at("left")->updateCooperateStatus(
+          left_shift.uuid, false, State::RUNNING, start_distance, finish_distance, clock_->now());
+      } else {
+        rtc_interface_ptr_map_.at("left")->updateCooperateStatus(
+          left_shift.uuid, true, State::RUNNING, start_distance, finish_distance, clock_->now());
+      }
+
+      if (finish_distance > -1.0) {
+        planning_factor_interface_->add(
+          start_distance, finish_distance, left_shift.start_pose, left_shift.finish_pose,
+          PlanningFactor::SHIFT_LEFT,
+          utils::path_safety_checker::to_safety_factor_array(debug_data_.collision_check), true,
+          start_velocity, end_velocity, left_shift.start_shift_length, left_shift.end_shift_length,
+          "left shift");
+      }
+    }
+
+    for (const auto & right_shift : filtered_right_shifts) {
+      const double start_distance = autoware::motion_utils::calcSignedArcLength(
+        path.points, ego_idx, right_shift.start_pose.position);
+      const double finish_distance = start_distance + right_shift.relative_longitudinal;
+      const auto start_idx =
+        autoware::motion_utils::findNearestIndex(path.points, right_shift.start_pose.position);
+      const auto finish_idx =
+        autoware::motion_utils::findNearestIndex(path.points, right_shift.finish_pose.position);
+      const double start_velocity = path.points.at(start_idx).point.longitudinal_velocity_mps;
+      const double end_velocity = path.points.at(finish_idx).point.longitudinal_velocity_mps;
+
+      if (rtc_interface_ptr_map_.at("right")->isForceActivated(right_shift.uuid)) {
+        rtc_interface_ptr_map_.at("right")->updateCooperateStatus(
+          right_shift.uuid, false, State::RUNNING, start_distance, finish_distance, clock_->now());
+      } else {
+        rtc_interface_ptr_map_.at("right")->updateCooperateStatus(
+          right_shift.uuid, true, State::RUNNING, start_distance, finish_distance, clock_->now());
+      }
+
+      if (finish_distance > -1.0) {
+        planning_factor_interface_->add(
+          start_distance, finish_distance, right_shift.start_pose, right_shift.finish_pose,
+          PlanningFactor::SHIFT_RIGHT,
+          utils::path_safety_checker::to_safety_factor_array(debug_data_.collision_check), true,
+          start_velocity, end_velocity, right_shift.start_shift_length,
+          right_shift.end_shift_length, "right shift");
+      }
+    }
+  }
+
+  /**
+   * @brief remove RTC status for candidate path.
+   */
+  void removeCandidateRTCStatus()
+  {
+    bool candidate_registered = false;
+
+    if (rtc_interface_ptr_map_.at("left")->isRegistered(candidate_uuid_)) {
+      rtc_interface_ptr_map_.at("left")->updateCooperateStatus(
+        candidate_uuid_, true, State::FAILED, std::numeric_limits<double>::lowest(),
+        std::numeric_limits<double>::lowest(), clock_->now());
+      candidate_registered = true;
+    }
+
+    if (rtc_interface_ptr_map_.at("right")->isRegistered(candidate_uuid_)) {
+      rtc_interface_ptr_map_.at("right")->updateCooperateStatus(
+        candidate_uuid_, true, State::FAILED, std::numeric_limits<double>::lowest(),
+        std::numeric_limits<double>::lowest(), clock_->now());
+      candidate_registered = true;
+    }
+
+    if (candidate_registered) {
+      uuid_map_.at("left") = generate_uuid();
+      uuid_map_.at("right") = generate_uuid();
+      candidate_uuid_ = generate_uuid();
+    }
+  }
+
+  /**
+   * @brief remove RTC status for left approved path.
+   */
+  void removePreviousRTCStatusLeft()
+  {
+    if (rtc_interface_ptr_map_.at("left")->isRegistered(uuid_map_.at("left"))) {
+      rtc_interface_ptr_map_.at("left")->removeCooperateStatus(uuid_map_.at("left"));
+    }
+  }
+
+  /**
+   * @brief remove RTC status for right approved path.
+   */
+  void removePreviousRTCStatusRight()
+  {
+    if (rtc_interface_ptr_map_.at("right")->isRegistered(uuid_map_.at("right"))) {
+      rtc_interface_ptr_map_.at("right")->removeCooperateStatus(uuid_map_.at("right"));
+    }
+  }
+
+  // initializer
+
+  /**
+   * @brief init member variables.
+   */
+  void initVariables();
+
+  /**
+   * @brief init RTC status.
+   */
+  void initRTCStatus();
+
+  /**
+   * @brief update RTC status.
+   */
+  void updateRTCData();
+
+  // ego behavior update
+
+  /**
+   * @brief insert stop/decel point in output path.
+   * @param avoidance data.
+   * @param target path.
+   */
+  void updateEgoBehavior(const AvoidancePlanningData & data, ShiftedPath & path);
+
+  /**
+   * @brief insert stop point in output path.
+   * @param flag. if it is true, the ego decelerates within accel/jerk constraints.
+   * @param target path.
+   * @return if the point is successfully inserted, return true.
+   */
+  bool insertWaitPoint(const bool use_constraints_for_decel, ShiftedPath & shifted_path) const;
+
+  /**
+   * @brief insert stop point to yield. (stop in the lane if possible, even if the shift has
+   * initiated.)
+   * @param flag. if it is true, the ego decelerates within accel/jerk constraints.
+   * @param target path.
+   * @return if the point is successfully inserted, return true.
+   */
+  bool insertStopPoint(const bool use_constraints_for_decel, ShiftedPath & shifted_path) const;
+
+  /**
+   * @brief insert stop point in return path to original lane.
+   * @param flag. if it is true, the ego decelerates within accel/jerk constraints.
+   * @param target path.
+   */
+  void insertReturnDeadLine(const bool use_constraints_for_decel, ShiftedPath & shifted_path) const;
+
+  /**
+   * @brief insert stop point in output path.
+   * @param target path.
+   */
+  void insertPrepareVelocity(ShiftedPath & shifted_path) const;
+
+  /**
+   * @brief insert max velocity in output path to limit acceleration.
+   * @param target path.
+   */
+  void insertAvoidanceVelocity(ShiftedPath & shifted_path) const;
+
+  /**
+   * @brief Apply post-approval stop hold behavior for the "stop_on_approval" policy.
+   * @param data avoidance planning data (used to check stop_target_object).
+   * @param path output path to insert the stop into.
+   */
+  void stillStopAndOutputTurnSignal(const AvoidancePlanningData &, ShiftedPath & path);
+
+  /**
+   * @brief calculate stop distance based on object's overhang.
+   * @param stop distance.
+   */
+  double calcDistanceToStopLine(const ObjectData & object) const;
+
+  // avoidance data preparation
+
+  /**
+   * @brief update main avoidance data for avoidance path generation based on latest planner data.
+   */
+  void fillFundamentalData(AvoidancePlanningData & data, DebugData & debug);
+
+  /**
+   * @brief fill additional data so that the module judges target objects.
+   * @return object that has additional data.
+   */
+  ObjectData createObjectData(
+    const AvoidancePlanningData & data, const PredictedObject & object) const;
+
+  /**
+   * @brief fill additional data so that the module judges target objects.
+   * @param avoidance data.
+   * @param debug data.
+   */
+  void fillAvoidanceTargetObjects(AvoidancePlanningData & data, DebugData & debug) const;
+
+  /**
+   * @brief fill additional data which are necessary to plan avoidance path/velocity.
+   * @param avoidance target objects.
+   */
+  void fillAvoidanceTargetData(ObjectDataArray & objects) const;
+
+  /**
+   * @brief fill candidate shift lines.
+   * @param avoidance data.
+   * @param debug data.
+   * @details in this function, following two shift line arrays are generated.
+   * - unapproved raw shift lines.
+   * - unapproved new shift lines.
+   * and check whether the new shift lines are safe or not.
+   */
+  void fillShiftLine(AvoidancePlanningData & data, DebugData & debug) const;
+
+  /**
+   * @brief fill ego status based on the candidate path safety check result.
+   * @param avoidance data.
+   * @param debug data.
+   */
+  void fillEgoStatus(AvoidancePlanningData & data, DebugData & debug) const;
+
+  /**
+   * @brief fill debug data.
+   * @param avoidance data.
+   * @param debug data.
+   */
+  void fillDebugData(const AvoidancePlanningData & data, DebugData & debug) const;
+
+  /**
+   * @brief check whether the ego can transit yield maneuver.
+   * @param avoidance data.
+   */
+  bool canYieldManeuver(const AvoidancePlanningData & data) const;
+
+  /**
+   * @brief add new shift line to path shifter if the RTC status is activated.
+   * @param new shift lines.
+   */
+  void updatePathShifter(const AvoidLineArray & point);
+
+  /**
+   * @brief add new shift line to path shifter.
+   * @param new shift lines.
+   */
+  void addNewShiftLines(PathShifter & path_shifter, const AvoidLineArray & shift_lines) const;
+
+  /**
+   * @brief once generate avoidance path from new shift lines, and calculate lateral offset between
+   * ego and the path.
+   * @param new shift lines.
+   * @param path shifter.
+   * @return result. if there is huge gap between the ego position and candidate path, return false.
+   */
+  bool isValidShiftLine(const AvoidLineArray & shift_lines, const PathShifter & shifter) const;
+
+  // generate output data
+
+  /**
+   * @brief fill info and debug markers.
+   */
+  void updateMarker(
+    const BehaviorModuleOutput & output, const AvoidancePlanningData & data,
+    const PathShifter & shifter, const DebugData & debug) const;
+
+  /**
+   * @brief fill debug msg that are published as a topic.
+   */
+  void updateAvoidanceDebugData(std::vector<AvoidanceDebugMsg> & avoidance_debug_msg_array) const;
+
+  // safety check
+
+  /**
+   * @brief check avoidance path safety for surround moving objects.
+   * @param avoidance path.
+   * @param debug data.
+   * @return result.
+   */
+  bool isSafePath(ShiftedPath & shifted_path, DebugData & debug) const;
+
+  /**
+   * @brief Check whether operator approval is required for the given shifted path.
+   *
+   * This function determines if the specified shifted path needs operator approval
+   * before it can be executed. The decision is made based on the provided path
+   * information.
+   *
+   * @param[in] shifted_path Reference to the shifted path to be evaluated.
+   * @param[in] debug Reference to debug data used during evaluation.
+   * @return true if operator approval is required, false otherwise.
+   */
+  bool is_operator_approval_required(ShiftedPath & shifted_path, DebugData & debug) const;
+
+  auto getTurnSignal(
+    const ShiftedPath & spline_shift_path, const ShiftedPath & linear_shift_path,
+    const ShiftLineArray & shift_lines) const
+    -> std::pair<TurnSignalInfo, std::optional<std::string>>;
+
+  /**
+   * @brief Generate spline/linear shifted paths from a shifter and compute turn signal.
+   * @param shifter PathShifter already configured with desired shift lines.
+   * @param reference_path Reference path used as the base for shifting.
+   * @return Computed TurnSignalInfo and an optional UUID string to be added to ignore_signal_ids_.
+   */
+  auto computeTurnSignalFromShifter(PathShifter & shifter, const PathWithLaneId & reference_path)
+    const -> std::pair<TurnSignalInfo, std::optional<std::string>>;
+
+  // post process
+
+  /**
+   * @brief extend backward length so that path shift inserts behind shift lines.
+   * @param current output path.
+   * @return extended path.
+   */
+  PathWithLaneId extendBackwardLength(const PathWithLaneId & original_path) const;
+
+  /**
+   * @brief reset registered shift lines.
+   * @details reset only when the base offset is zero. Otherwise, sudden steering will be caused;
+   */
+  void removeRegisteredShiftLines(const uint8_t state)
+  {
+    constexpr double threshold = 0.1;
+    if (std::abs(path_shifter_.getBaseOffset()) > threshold) {
+      RCLCPP_INFO_THROTTLE(
+        getLogger(), *clock_, 3000, "base offset is not zero. can't reset registered shift lines.");
+      return;
+    }
+
+    unlockNewModuleLaunch();
+
+    for (const auto & left_shift : left_shift_array_) {
+      if (rtc_interface_ptr_map_.at("left")->isRegistered(left_shift.uuid)) {
+        rtc_interface_ptr_map_.at("left")->updateCooperateStatus(
+          left_shift.uuid, true, state, std::numeric_limits<double>::lowest(),
+          std::numeric_limits<double>::lowest(), clock_->now());
+      }
+    }
+
+    for (const auto & right_shift : right_shift_array_) {
+      if (rtc_interface_ptr_map_.at("right")->isRegistered(right_shift.uuid)) {
+        rtc_interface_ptr_map_.at("right")->updateCooperateStatus(
+          right_shift.uuid, true, state, std::numeric_limits<double>::lowest(),
+          std::numeric_limits<double>::lowest(), clock_->now());
+      }
+    }
+
+    if (!path_shifter_.getShiftLines().empty()) {
+      left_shift_array_.clear();
+      right_shift_array_.clear();
+    }
+
+    generator_.reset();
+    path_shifter_.setShiftLines(ShiftLineArray{});
+  }
+
+  struct RegisteredShiftLine
+  {
+    UUID uuid;
+    Pose start_pose;
+    Pose finish_pose;
+    double relative_longitudinal{0.0};
+    double start_shift_length{0.0};
+    double end_shift_length{0.0};
+  };
+
+  using RegisteredShiftLineArray = std::vector<RegisteredShiftLine>;
+
+  bool arrived_path_end_{false};
+
+  bool safe_{true};
+
+  std::set<std::string> ignore_signal_ids_;
+
+  std::shared_ptr<AvoidanceHelper> helper_;
+
+  std::shared_ptr<AvoidanceParameters> parameters_;
+
+  utils::static_obstacle_avoidance::ShiftLineGenerator generator_;
+
+  AvoidancePlanningData avoid_data_;
+
+  PathShifter path_shifter_;
+
+  RegisteredShiftLineArray left_shift_array_;
+
+  RegisteredShiftLineArray right_shift_array_;
+
+  UUID candidate_uuid_;
+
+  ObjectDataArray clip_objects_;
+
+  // TODO(Satoshi OTA) create detected object manager.
+  ObjectDataArray stored_objects_;
+
+  // TODO(Satoshi OTA) remove this variable.
+  mutable ObjectDataArray ego_stopped_objects_;
+
+  // TODO(Satoshi OTA) remove this variable.
+  mutable ObjectDataArray stopped_objects_;
+
+  mutable std::unordered_map<std::string, rclcpp::Time> unknown_type_object_first_seen_time_map_;
+
+  mutable size_t safe_count_{0};
+
+  mutable DebugData debug_data_;
+
+  mutable std::shared_ptr<AvoidanceDebugMsgArray> debug_msg_ptr_;
+
+  mutable std::vector<AvoidanceDebugMsg> debug_avoidance_initializer_for_shift_line_;
+
+  mutable rclcpp::Time debug_avoidance_initializer_for_shift_line_time_;
+
+  bool force_deactivated_{false};
+  rclcpp::Time last_deactivation_triggered_time_;
+
+  // State for the "stop_on_approval" turn signal policy.
+  // Set to true in planWaitingApproval(); cleared once the hold period completes so that
+  // a re-approval triggers a fresh hold period.
+  bool was_stop_inserted_{false};
+
+  bool stopped_on_avoidance_stop_point_{false};
+  // Timestamp when the hold period started (set on the first cycle after approval).
+  std::optional<rclcpp::Time> approval_start_time_{std::nullopt};
+};
+
+}  // namespace autoware::behavior_path_planner
+
+#endif  // AUTOWARE__BEHAVIOR_PATH_STATIC_OBSTACLE_AVOIDANCE_MODULE__SCENE_HPP_

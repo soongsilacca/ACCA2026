@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>hdmap_loader</name>
+  <version>1.0.0</version>
+  <description>MGeo HD map loader and visualization package for RViz</description>
+
+  <maintainer email="jinju@todo.todo">jinju</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+
+  <export></export>
+</package>

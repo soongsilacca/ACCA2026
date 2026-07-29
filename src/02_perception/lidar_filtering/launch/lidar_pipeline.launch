@@ -1,0 +1,45 @@
+<launch>
+    <!-- 1. PointCloud Crop Node (Forward ROI: x: 0.0 ~ 50.0m, y: -15.0 ~ 15.0m, z: -2.0 ~ 3.0m) -->
+    <node pkg="lidar_filtering" type="pointcloud_crop_node" name="pointcloud_crop_node" output="screen">
+        <param name="input_topic" value="/velodyne_points" />
+        <param name="output_topic" value="/velodyne_points_cropped" />
+        <param name="min_x" value="0.0" />
+        <param name="max_x" value="50.0" />
+        <param name="min_y" value="-15.0" />
+        <param name="max_y" value="15.0" />
+        <param name="min_z" value="-2.0" />
+        <param name="max_z" value="3.0" />
+        <param name="negative" value="false" />
+    </node>
+
+    <!-- 2. Ring Ground Filter Node -->
+    <node pkg="lidar_filtering" type="ring_ground_filter_node" name="ring_ground_filter_node" output="screen">
+        <param name="input_topic" value="/velodyne_points_cropped" />
+        <param name="output_ground_topic" value="/velodyne_points_ground" />
+        <param name="output_no_ground_topic" value="/velodyne_points_filtered" />
+        <param name="sensor_height" value="0.22" /> <!-- VLP-16 height from ground -->
+        <param name="max_ground_height" value="0.25" />
+        <param name="local_max_slope" value="10.0" />
+        <param name="general_max_slope" value="5.0" />
+        <param name="min_height_threshold" value="0.15" />
+        <param name="radial_divider_angle" value="0.18" />
+    </node>
+
+    <!-- 3. PointCloud Lane Filter Node (Intensity Filter) -->
+    <node pkg="lidar_filtering" type="pointcloud_lane_filter_node" name="pointcloud_lane_filter_node" output="screen">
+        <param name="input_topic" value="/velodyne_points_ground" />
+        <param name="output_topic" value="/velodyne_points_lane" />
+        <param name="min_intensity" value="50.0" />
+    </node>
+
+    <!-- 4. Adaptive Cluster Node with L-Shape Bounding Box Fitting -->
+    <node pkg="lidar_filtering" type="shape_estimation_cluster_node" name="shape_estimation_cluster_node" output="screen">
+        <param name="input_topic" value="/velodyne_points_filtered" />
+        <param name="marker_topic" value="/clusters_markers" />
+        <param name="pose_topic" value="/clusters_poses" />
+        <param name="min_cluster_size" value="3" />
+        <param name="max_cluster_size" value="10000" />
+        <param name="base_tolerance" value="0.45" />
+        <param name="tolerance_slope" value="0.02" />
+    </node>
+</launch>

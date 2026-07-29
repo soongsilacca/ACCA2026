@@ -1,0 +1,29 @@
+<launch>
+  <!-- ========================================================
+       mgeo_marker_node launch file
+       Usage:
+         roslaunch hdmap_loader mgeo_marker.launch
+  ======================================================== -->
+
+  <arg name="node_file"        default="$(find hdmap_loader)/scripts/node_set.json" />
+  <arg name="link_file"        default="$(find hdmap_loader)/scripts/link_set.json" />
+  <arg name="global_info_file" default="$(find hdmap_loader)/scripts/global_info.json" />
+  
+  <arg name="frame_id"            default="map" />
+  <arg name="publish_hz"          default="0.5" />
+  <arg name="show_arrows"         default="true" />
+  <arg name="z_offset"            default="-28.52" />
+  
+  <node pkg="hdmap_loader"
+        type="mgeo_marker_node.py"
+        name="mgeo_marker_node"
+        output="screen">
+    <param name="node_file"           value="$(arg node_file)" />
+    <param name="link_file"           value="$(arg link_file)" />
+    <param name="global_info_file"    value="$(arg global_info_file)" />
+    <param name="frame_id"            value="$(arg frame_id)" />
+    <param name="publish_hz"          value="$(arg publish_hz)" />
+    <param name="show_arrows"         value="$(arg show_arrows)" />
+    <param name="z_offset"            value="$(arg z_offset)" />
+  </node>
+</launch>

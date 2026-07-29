@@ -279,3 +279,6 @@ AMENT_IGNORE
 YOLOs-CPP/
 # End of https://www.toptal.com/developers/gitignore/api/python,c,c++,ros2
 
+src/03_localization/fast_gicp
+src/03_localization/hdl_localization
+src/03_localization/ndt_omp

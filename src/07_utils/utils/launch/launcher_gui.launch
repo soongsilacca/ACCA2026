@@ -1,0 +1,4 @@
+<launch>
+  <!-- Launch MORAI & ROS Tkinter Launcher GUI -->
+  <node name="morai_ros_launcher_gui" pkg="utils" type="launcher_gui.py" output="screen" />
+</launch>

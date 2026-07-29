@@ -1,0 +1,259 @@
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Changelog for package autoware_behavior_path_side_shift_module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+0.52.0 (2026-06-30)
+-------------------
+* Merge remote-tracking branch 'origin/main' into tmp/bot/bump_version_base
+* feat(behavior_path_side_shift): add drivable area check to prevent lane departure (`#12504 <https://github.com/autowarefoundation/autoware_universe/issues/12504>`_)
+  * feat(behavior_path_side_shift): add drivable area check for lane departure in side shift module
+  - Add DrivableAreaCheckMode enum with DISABLED, CURRENT_LANE, ADJACENT_LANES options
+  - Implement calcOffsetLimitsFromLanelets() to compute safe lateral offset limits
+  - Clamp requested lateral offset to prevent exceeding lane boundaries
+  - Add configurable parameters for check mode and minimum margin
+  * fix(behavior_path_side_shift): fix mode2 lateral offset limit check
+  * fix(behavior_path_side_shift): prevent out-of-bounds at lane reduction intersections
+  When `drivable_area_check_mode` is set to `ADJACENT_LANES` (mode 2), the vehicle could previously go out of lane boundaries at intersections where the number of lanes decreases.
+  This commit fixes the issue by introducing the following changes:
+  1. In `SideShiftModule::updateData()`, continuously check and clamp `requested_lateral_offset\_` and `inserted_lateral_offset\_` using `calcMaxLateralOffset()`. If the drivable boundary narrows, it triggers a `lateral_offset_change_request\_` to force path recalculation.
+  2. In `SideShiftModule::plan()`, remove the state lock that prevented `replaceShiftLine()` from executing during the `SHIFTING` state. This allows the newly clamped safe offset to immediately update the path, even if the vehicle is currently executing a lateral shift.
+  * refactor(behavior_path_side_shift): simplify lateral offset clamping using std::clamp
+  Update calcMaxLateralOffset to use C++17 std::clamp instead of a ternary operator with std::min and std::max.
+  * feat(behavior_path_side_shift): add comment for drivable_area_check_mode
+  * fix(behavior_path_side_shift): restore shift status check to prevent chattering
+  * refactor(behavior_path_side_shift): inline parameter reference for vehicle width
+  * fix(behavior_path_planner): add missing <utility> include for std::pair
+  Fixes a cpplint 'build/include_what_you_use' error in scene.cpp.
+  * fix(behavior_path_side_shift): preserve requested offset when road widens
+  Keep the original lateral offset request even when it is clamped by the current drivable area. Recompute the constrained offset every cycle and request a shift-line update when the available lane width changes, so the path can move farther toward the requested offset after the road widens.
+  * style(behavior_path_side_shift): apply clang-format
+  ---------
+  Co-authored-by: Taiki Yamada <129915538+TaikiYamada4@users.noreply.github.com>
+* Contributors: Uta Kawakami, github-actions
+
+0.51.0 (2026-05-01)
+-------------------
+* Merge remote-tracking branch 'origin/main' into tmp/bot/bump_version_base
+* fix(autoware_behavior_path_side_shift): stabilize side shift path (`#12473 <https://github.com/mitsudome-r/autoware_universe/issues/12473>`_)
+  * stabilize side shift path
+  * change comment
+  ---------
+* fix: revert "fix(behavior_path_side_shift): preserve shifted path shap to prevent chattering (`#12278 <https://github.com/mitsudome-r/autoware_universe/issues/12278>`_)" (`#12377 <https://github.com/mitsudome-r/autoware_universe/issues/12377>`_)
+  Revert "fix(behavior_path_side_shift): preserve shifted path shape to prevent chattering (`#12278 <https://github.com/mitsudome-r/autoware_universe/issues/12278>`_)"
+  This reverts commit 1b4472c60fed4f83b1a1a9de1705af0465bec2b5.
+* fix(behavior_path_side_shift): preserve shifted path shape to prevent chattering (`#12278 <https://github.com/mitsudome-r/autoware_universe/issues/12278>`_)
+  * fix(behavior_path_side_shift): preserve shifted path shape to prevent chattering
+  The side shift path was regenerated every planning cycle via path_shifter\_.generate(), which depends on the reference path resampled from the upstream module output. When upstream output fluctuated (e.g., due to object detection chattering), the shifted path shape changed every cycle even without a new shift request.
+  This commit adds keepPrevPathShape() to retain the previously generated shifted path shape when no new shift line is inserted via replaceShiftLine(). The method trims already-traversed points behind the ego position and appends new forward points from the freshly generated path to extend coverage.
+  * Revert "fix(behavior_path_side_shift): preserve shifted path shape to prevent chattering"
+  This reverts commit 5f6bf02b963e3357a7bc72fe880c5fc6a86ea7e3.
+  * fix(behavior_path_side_shift_module): prevent path chattering by conditional path generation
+  * refactor(behavior_path_side_shift): move replaceShiftLine before path generation
+  Moved  closer to  for better readability, based on PR review. Added a flag check to preserve the original condition.
+  ---------
+* chore(behavior_path_planner): remove unused lanelet2_extension header (`#12292 <https://github.com/mitsudome-r/autoware_universe/issues/12292>`_)
+  unused lanelet2_extension in bpp modules
+  Co-authored-by: Mamoru Sobue <hilo.soblin@gmail.com>
+* chore: organize maintainer (`#12120 <https://github.com/mitsudome-r/autoware_universe/issues/12120>`_)
+  * chore: organize maintainer
+  * fix: ci error
+  ---------
+* Contributors: Sarun MUKDAPITAK, Satoshi OTA, Taiki Yamada, Uta Kawakami, github-actions
+
+0.50.0 (2026-02-14)
+-------------------
+
+0.49.0 (2025-12-30)
+-------------------
+
+0.48.0 (2025-11-18)
+-------------------
+* Merge remote-tracking branch 'origin/main' into humble
+* fix: tf2 uses hpp headers in rolling (and is backported) (`#11620 <https://github.com/autowarefoundation/autoware_universe/issues/11620>`_)
+* Contributors: Ryohsuke Mitsudome, Tim Clephas
+
+0.47.1 (2025-08-14)
+-------------------
+
+0.47.0 (2025-08-11)
+-------------------
+
+0.46.0 (2025-06-20)
+-------------------
+
+0.45.0 (2025-05-22)
+-------------------
+
+0.44.2 (2025-06-10)
+-------------------
+
+0.44.1 (2025-05-01)
+-------------------
+
+0.44.0 (2025-04-18)
+-------------------
+
+0.43.0 (2025-03-21)
+-------------------
+* Merge remote-tracking branch 'origin/main' into chore/bump-version-0.43
+* chore: rename from `autoware.universe` to `autoware_universe` (`#10306 <https://github.com/autowarefoundation/autoware_universe/issues/10306>`_)
+* Contributors: Hayato Mizushima, Yutaka Kondo
+
+0.42.0 (2025-03-03)
+-------------------
+* Merge remote-tracking branch 'origin/main' into tmp/bot/bump_version_base
+* feat(autoware_utils): replace autoware_universe_utils with autoware_utils  (`#10191 <https://github.com/autowarefoundation/autoware_universe/issues/10191>`_)
+* feat!: replace tier4_planning_msgs/PathWithLaneId with autoware_internal_planning_msgs/PathWithLaneId (`#10023 <https://github.com/autowarefoundation/autoware_universe/issues/10023>`_)
+* feat(planning_test_manager): abstract message-specific functions (`#9882 <https://github.com/autowarefoundation/autoware_universe/issues/9882>`_)
+  * abstract message-specific functions
+  * include necessary header
+  * adapt velocity_smoother to new test manager
+  * adapt behavior_velocity_planner to new test manager
+  * adapt path_optimizer to new test manager
+  * fix output subscription
+  * adapt behavior_path_planner to new test manager
+  * adapt scenario_selector to new test manager
+  * adapt freespace_planner to new test manager
+  * adapt planning_validator to new test manager
+  * adapt obstacle_stop_planner to new test manager
+  * adapt obstacle_cruise_planner to new test manager
+  * disable test for freespace_planner
+  * adapt behavior_velocity_crosswalk_module to new test manager
+  * adapt behavior_path_lane_change_module to new test manager
+  * adapt behavior_path_avoidance_by_lane_change_module to new test manager
+  * adapt behavior_path_dynamic_obstacle_avoidance_module to new test manager
+  * adapt behavior_path_external_request_lane_change_module to new test manager
+  * adapt behavior_path_side_shift_module to new test manager
+  * adapt behavior_path_static_obstacle_avoidance_module to new test manager
+  * adapt path_smoother to new test manager
+  * adapt behavior_velocity_blind_spot_module to new test manager
+  * adapt behavior_velocity_detection_area_module to new test manager
+  * adapt behavior_velocity_intersection_module to new test manager
+  * adapt behavior_velocity_no_stopping_area_module to new test manager
+  * adapt behavior_velocity_run_out_module to new test manager
+  * adapt behavior_velocity_stop_line_module to new test manager
+  * adapt behavior_velocity_traffic_light_module to new test manager
+  * adapt behavior_velocity_virtual_traffic_light_module to new test manager
+  * adapt behavior_velocity_walkway_module to new test manager
+  * adapt motion_velocity_planner_node_universe to new test manager
+  * include necessary headers
+  * Odometries -> Odometry
+  ---------
+  Co-authored-by: Takayuki Murooka <takayuki5168@gmail.com>
+* Contributors: Fumiya Watanabe, Mitsuhiro Sakamoto, Ryohsuke Mitsudome, 心刚
+
+0.41.2 (2025-02-19)
+-------------------
+* chore: bump version to 0.41.1 (`#10088 <https://github.com/autowarefoundation/autoware_universe/issues/10088>`_)
+* Contributors: Ryohsuke Mitsudome
+
+0.41.1 (2025-02-10)
+-------------------
+
+0.41.0 (2025-01-29)
+-------------------
+* Merge remote-tracking branch 'origin/main' into tmp/bot/bump_version_base
+* refactor(behavior_path_planner): common test functions (`#9963 <https://github.com/autowarefoundation/autoware_universe/issues/9963>`_)
+  * feat: common test code in behavior_path_planner
+  * deal with other modules
+  * fix typo
+  * update
+  ---------
+* feat(planning_factor)!: remove velocity_factor, steering_factor and introduce planning_factor (`#9927 <https://github.com/autowarefoundation/autoware_universe/issues/9927>`_)
+  Co-authored-by: Satoshi OTA <44889564+satoshi-ota@users.noreply.github.com>
+  Co-authored-by: Ryohsuke Mitsudome <43976834+mitsudome-r@users.noreply.github.com>
+  Co-authored-by: satoshi-ota <satoshi.ota928@gmail.com>
+* Contributors: Fumiya Watanabe, Mamoru Sobue, Takayuki Murooka
+
+0.40.0 (2024-12-12)
+-------------------
+* Merge branch 'main' into release-0.40.0
+* Revert "chore(package.xml): bump version to 0.39.0 (`#9587 <https://github.com/autowarefoundation/autoware_universe/issues/9587>`_)"
+  This reverts commit c9f0f2688c57b0f657f5c1f28f036a970682e7f5.
+* fix: fix ticket links in CHANGELOG.rst (`#9588 <https://github.com/autowarefoundation/autoware_universe/issues/9588>`_)
+* chore(package.xml): bump version to 0.39.0 (`#9587 <https://github.com/autowarefoundation/autoware_universe/issues/9587>`_)
+  * chore(package.xml): bump version to 0.39.0
+  * fix: fix ticket links in CHANGELOG.rst
+  * fix: remove unnecessary diff
+  ---------
+  Co-authored-by: Yutaka Kondo <yutaka.kondo@youtalk.jp>
+* fix: fix ticket links in CHANGELOG.rst (`#9588 <https://github.com/autowarefoundation/autoware_universe/issues/9588>`_)
+* fix(cpplint): include what you use - planning (`#9570 <https://github.com/autowarefoundation/autoware_universe/issues/9570>`_)
+* test(autoware_behavior_path_side_shift_module): add unit tests for util function (`#9540 <https://github.com/autowarefoundation/autoware_universe/issues/9540>`_)
+  test(side_shift_module): add unit tests
+* refactor(autoware_behavior_path_side_shift_module): refactor shift length retrieval and improve path orientation handling (`#9539 <https://github.com/autowarefoundation/autoware_universe/issues/9539>`_)
+  refactor(side_shift_module): refactor shift length retrieval and improve path orientation handling
+* 0.39.0
+* update changelog
+* fix: fix ticket links to point to https://github.com/autowarefoundation/autoware_universe (`#9304 <https://github.com/autowarefoundation/autoware_universe/issues/9304>`_)
+* refactor(bpp): rework steering factor interface (`#9325 <https://github.com/autowarefoundation/autoware_universe/issues/9325>`_)
+  * refactor(bpp): rework steering factor interface
+  * refactor(soa): rework steering factor interface
+  * refactor(AbLC): rework steering factor interface
+  * refactor(doa): rework steering factor interface
+  * refactor(lc): rework steering factor interface
+  * refactor(gp): rework steering factor interface
+  * refactor(sp): rework steering factor interface
+  * refactor(sbp): rework steering factor interface
+  * refactor(ss): rework steering factor interface
+  ---------
+* fix: fix ticket links to point to https://github.com/autowarefoundation/autoware_universe (`#9304 <https://github.com/autowarefoundation/autoware_universe/issues/9304>`_)
+* chore(package.xml): bump version to 0.38.0 (`#9266 <https://github.com/autowarefoundation/autoware_universe/issues/9266>`_) (`#9284 <https://github.com/autowarefoundation/autoware_universe/issues/9284>`_)
+  * unify package.xml version to 0.37.0
+  * remove system_monitor/CHANGELOG.rst
+  * add changelog
+  * 0.38.0
+  ---------
+* Contributors: Esteve Fernandez, Fumiya Watanabe, Kyoichi Sugahara, M. Fatih Cırıt, Ryohsuke Mitsudome, Satoshi OTA, Yutaka Kondo
+
+0.39.0 (2024-11-25)
+-------------------
+* fix: fix ticket links to point to https://github.com/autowarefoundation/autoware_universe (`#9304 <https://github.com/autowarefoundation/autoware_universe/issues/9304>`_)
+* fix: fix ticket links to point to https://github.com/autowarefoundation/autoware_universe (`#9304 <https://github.com/autowarefoundation/autoware_universe/issues/9304>`_)
+* chore(package.xml): bump version to 0.38.0 (`#9266 <https://github.com/autowarefoundation/autoware_universe/issues/9266>`_) (`#9284 <https://github.com/autowarefoundation/autoware_universe/issues/9284>`_)
+  * unify package.xml version to 0.37.0
+  * remove system_monitor/CHANGELOG.rst
+  * add changelog
+  * 0.38.0
+  ---------
+* Contributors: Esteve Fernandez, Yutaka Kondo
+
+0.38.0 (2024-11-08)
+-------------------
+* unify package.xml version to 0.37.0
+* refactor(bpp_common, motion_utils): move path shifter util functions to autoware::motion_utils (`#9081 <https://github.com/autowarefoundation/autoware_universe/issues/9081>`_)
+  * remove unused function
+  * mover path shifter utils function to autoware motion utils
+  * minor change in license header
+  * fix warning message
+  * remove header file
+  ---------
+* fix(bpp): use common steering factor interface for same scene modules (`#8675 <https://github.com/autowarefoundation/autoware_universe/issues/8675>`_)
+* fix(autoware_behavior_path_side_shift_module): fix unusedFunction (`#8655 <https://github.com/autowarefoundation/autoware_universe/issues/8655>`_)
+  fix:unusedFunction
+* feat: add `autoware\_` prefix to `lanelet2_extension` (`#7640 <https://github.com/autowarefoundation/autoware_universe/issues/7640>`_)
+* refactor(universe_utils/motion_utils)!: add autoware namespace (`#7594 <https://github.com/autowarefoundation/autoware_universe/issues/7594>`_)
+* refactor(motion_utils)!: add autoware prefix and include dir (`#7539 <https://github.com/autowarefoundation/autoware_universe/issues/7539>`_)
+  refactor(motion_utils): add autoware prefix and include dir
+* feat(autoware_universe_utils)!: rename from tier4_autoware_utils (`#7538 <https://github.com/autowarefoundation/autoware_universe/issues/7538>`_)
+  Co-authored-by: kosuke55 <kosuke.tnp@gmail.com>
+* refactor(behaivor_path_planner)!: rename to include/autoware/{package_name} (`#7522 <https://github.com/autowarefoundation/autoware_universe/issues/7522>`_)
+  * refactor(behavior_path_planner)!: make autoware dir in include
+  * refactor(start_planner): make autoware include dir
+  * refactor(goal_planner): make autoware include dir
+  * sampling planner module
+  * fix sampling planner build
+  * dynamic_avoidance
+  * lc
+  * side shift
+  * autoware_behavior_path_static_obstacle_avoidance_module
+  * autoware_behavior_path_planner_common
+  * make behavior_path dir
+  * pre-commit
+  * fix pre-commit
+  * fix build
+  ---------
+* Contributors: Go Sakayori, Kosuke Takeuchi, Satoshi OTA, Takayuki Murooka, Yutaka Kondo, kobayu858
+
+0.26.0 (2024-04-03)
+-------------------

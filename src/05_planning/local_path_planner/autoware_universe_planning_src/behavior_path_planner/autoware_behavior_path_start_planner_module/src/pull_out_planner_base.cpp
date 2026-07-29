@@ -1,0 +1,59 @@
+// Copyright 2024 Tier IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "autoware/behavior_path_start_planner_module/pull_out_planner_base.hpp"
+
+#include <memory>
+
+namespace autoware::behavior_path_planner
+{
+bool PullOutPlannerBase::isPullOutPathCollided(
+  const autoware::behavior_path_planner::PullOutPath & pull_out_path,
+  const std::shared_ptr<const PlannerData> & planner_data,
+  double collision_check_distance_from_end) const
+{
+  autoware_utils::ScopedTimeTrack st(__func__, *time_keeper_);
+
+  // check for collisions
+  const auto & dynamic_objects = planner_data->dynamic_object;
+  if (!dynamic_objects) {
+    return false;
+  }
+  const auto pull_out_lanes = start_planner_utils::getPullOutLanes(
+    planner_data, planner_data->parameters.backward_path_length + parameters_.max_back_distance);
+  // extract stop objects in pull out lane for collision check
+  const auto stop_objects = utils::path_safety_checker::filterObjectsByVelocity(
+    *dynamic_objects, parameters_.th_moving_object_velocity);
+  auto [pull_out_lane_stop_objects, others] = utils::path_safety_checker::separateObjectsByLanelets(
+    stop_objects, pull_out_lanes,
+    [](const auto & obj, const auto & lane, const auto yaw_threshold) {
+      return utils::path_safety_checker::isPolygonOverlapLanelet(obj, lane, yaw_threshold);
+    });
+  utils::path_safety_checker::filterObjectsByClass(
+    pull_out_lane_stop_objects, parameters_.object_types_to_check_for_path_generation);
+
+  const auto collision_check_section_path =
+    autoware::behavior_path_planner::start_planner_utils::extractCollisionCheckSection(
+      pull_out_path, collision_check_distance_from_end);
+  if (!collision_check_section_path) return false;
+
+  const auto shift_length =
+    std::abs(pull_out_path.shift_length.end - pull_out_path.shift_length.start);
+  return autoware::behavior_path_planner::start_planner_utils::
+    has_collision_between_shifted_path_footprints_and_objects(
+      collision_check_section_path.value(), vehicle_footprint_, pull_out_lane_stop_objects,
+      collision_check_margin_, parameters_.th_stopped_velocity, shift_length,
+      parameters_.minimum_shift_length, parameters_.enable_back);
+};
+}  // namespace autoware::behavior_path_planner

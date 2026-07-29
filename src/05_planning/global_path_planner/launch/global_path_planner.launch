@@ -1,0 +1,35 @@
+<launch>
+  <!-- ========================================================
+       global_path_planner launch file
+       Usage:
+         roslaunch global_path_planner global_path_planner.launch
+       ======================================================== -->
+
+  <arg name="node_file"           default="$(find hdmap_loader)/scripts/node_set.json" />
+  <arg name="link_file"           default="$(find hdmap_loader)/scripts/link_set.json" />
+  <arg name="global_info_file"    default="$(find hdmap_loader)/scripts/global_info.json" />
+  <arg name="frame_id"            default="map" />
+  <arg name="lane_change_penalty" default="15.0" />
+  <arg name="left_turn_penalty"   default="10.0" />
+  <arg name="right_turn_penalty"  default="5.0" />
+  <arg name="uturn_penalty"        default="9999.0" />
+  <arg name="use_smoothing"       default="true" />
+  <arg name="resample_interval"   default="0.5" />
+
+  <!-- Global Path Planner Node -->
+  <node pkg="global_path_planner"
+        type="global_path_planner_node.py"
+        name="global_path_planner_node"
+        output="screen">
+    <param name="node_file"           value="$(arg node_file)" />
+    <param name="link_file"           value="$(arg link_file)" />
+    <param name="global_info_file"    value="$(arg global_info_file)" />
+    <param name="frame_id"            value="$(arg frame_id)" />
+    <param name="lane_change_penalty" value="$(arg lane_change_penalty)" />
+    <param name="left_turn_penalty"   value="$(arg left_turn_penalty)" />
+    <param name="right_turn_penalty"  value="$(arg right_turn_penalty)" />
+    <param name="uturn_penalty"        value="$(arg uturn_penalty)" />
+    <param name="use_smoothing"       value="$(arg use_smoothing)" />
+    <param name="resample_interval"   value="$(arg resample_interval)" />
+  </node>
+</launch>

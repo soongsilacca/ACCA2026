@@ -1,0 +1,19 @@
+<launch>
+  <!-- ════════════════════════════════════════════════════════════════
+       MORAI Scenario Auto-Loader Launch File (Specific Scenario)
+       ════════════════════════════════════════════════════════════════ -->
+
+  <!-- 기본 파일 경로 설정 (지정된 시나리오 로드) -->
+  <arg name="input_scene" default="$(env HOME)/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/2026_molit_comp_sample_scene.json" />
+  <arg name="ip" default="127.0.0.1" />
+  <arg name="port" default="9095" />
+
+  <!-- 시나리오 로더 노드 (지정된 시나리오를 MORAI 시뮬레이터로 UDP 로드) -->
+  <node name="scenario_load_sender" pkg="morai_udp_bridge" type="scenario_load_sender_node.py" output="screen">
+    <param name="ip" value="$(arg ip)" />
+    <param name="port" value="$(arg port)" />
+    <param name="scenario_file" value="$(arg input_scene)" />
+    <param name="load_on_start" value="true" />
+  </node>
+
+</launch>
