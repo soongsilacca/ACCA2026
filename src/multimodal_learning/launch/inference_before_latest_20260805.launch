@@ -1,0 +1,57 @@
+<launch>
+  <arg name="model_source_dir" default="/home/acca" />
+  <arg name="checkpoint_path" default="/home/acca/best.pt" />
+  <arg name="path_marker_topic"
+       default="/multimodal_learning/predicted_path_markers" />
+  <arg name="path_spacing" default="0.1" />
+  <arg name="path_length" default="80.0" />
+  <arg name="mpc_route_start_index" default="2" />
+  <arg name="lateral_residual_deadband_m" default="0.1" />
+  <arg name="max_lateral_acceleration_mps2" default="3.0" />
+  <arg name="max_curve_deceleration_mps2" default="2.0" />
+  <arg name="curvature_smoothing_m" default="1.0" />
+  <arg name="mgeo_target_velocity_topic" default="/mgeo_target_velocity" />
+  <arg name="use_cuda" default="true" />
+  <arg name="planning_publish_hz" default="20.0" />
+  <arg name="prediction_timeout" default="1.0" />
+  <arg name="sync_slop" default="0.25" />
+  <arg name="lidar_sync_tolerance" default="0.25" />
+  <arg name="action_queue_size" default="5" />
+  <arg name="action_switch_count" default="3" />
+  <arg name="immediate_stop_probability" default="0.8" />
+  <arg name="rviz" default="false" />
+  <arg name="rviz_config" default="$(find multimodal_learning)/config/inference.rviz" />
+  <arg name="topics_config" default="$(find multimodal_learning)/config/topics.yaml" />
+  <arg name="dataset_config" default="$(find multimodal_learning)/config/dataset.yaml" />
+  <node pkg="multimodal_learning" type="inference_node.py" name="multimodal_inference" output="screen">
+    <param name="model_source_dir" value="$(arg model_source_dir)" />
+    <param name="checkpoint_path" value="$(arg checkpoint_path)" />
+    <param name="path_marker_topic" value="$(arg path_marker_topic)" />
+    <param name="path_spacing" value="$(arg path_spacing)" />
+    <param name="path_length" value="$(arg path_length)" />
+    <param name="mpc_route_start_index" value="$(arg mpc_route_start_index)" />
+    <param name="lateral_residual_deadband_m"
+           value="$(arg lateral_residual_deadband_m)" />
+    <param name="max_lateral_acceleration_mps2"
+           value="$(arg max_lateral_acceleration_mps2)" />
+    <param name="max_curve_deceleration_mps2"
+           value="$(arg max_curve_deceleration_mps2)" />
+    <param name="curvature_smoothing_m"
+           value="$(arg curvature_smoothing_m)" />
+    <param name="mgeo_target_velocity_topic" value="$(arg mgeo_target_velocity_topic)" />
+    <param name="use_cuda" value="$(arg use_cuda)" />
+    <param name="topics_config" value="$(arg topics_config)" />
+    <param name="dataset_config" value="$(arg dataset_config)" />
+    <param name="planning_publish_hz" value="$(arg planning_publish_hz)" />
+    <param name="prediction_timeout" value="$(arg prediction_timeout)" />
+    <param name="sync_slop" value="$(arg sync_slop)" />
+    <param name="lidar_sync_tolerance" value="$(arg lidar_sync_tolerance)" />
+    <param name="action_queue_size" value="$(arg action_queue_size)" />
+    <param name="action_switch_count" value="$(arg action_switch_count)" />
+    <param name="immediate_stop_probability"
+           value="$(arg immediate_stop_probability)" />
+  </node>
+
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="multimodal_inference_rviz"
+        args="-d $(arg rviz_config)" output="screen" />
+</launch>

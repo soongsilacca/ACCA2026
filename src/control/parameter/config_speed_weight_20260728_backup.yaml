@@ -1,0 +1,76 @@
+wheelbase: 3.0
+# 1. 차량 기본 제원 및 제어 주기
+dt: 0.05
+nx: 3
+nu: 2
+T: 80
+
+# 2. 최종 목적지 터미널 가중치 (Qf)
+qf_ct: 10.0
+qf_v: 20.0
+qf_yaw: 10.0
+
+# 3. 하드웨어 물리 제약조건 값들
+max_accel: 5.0
+max_brake: 5.0
+max_steer: 0.69813    # 라디안 단위 (약 40도)
+max_dsteer: 1.5 #0.7 #0.5236  # 초당 조향각 제안 디티 가중
+min_speed: 0.0
+max_speed: 20.0
+
+# 4. 스탠리 게인 값
+stanley_kv: 0.25        # 저속 댐핑 안정화 게인
+stanley_h_gain: 2    # 헤딩 에러 가중치 게인 
+stanley_c_gain: 1     # 크로스트랙 에러 가중치 게인
+
+# 5. PI 제어 게인 값
+kp: 1.5                 # 비례제어 게인
+ki: 1.0                 # 적분제어 게인
+
+# 6. Adaptive MPC Weight
+
+# Base Weight
+q_ct_base: 2.0
+q_v_base: 5.0
+q_yaw_base: 2.0
+
+r_accel_base: 0.5
+r_steer_base: 60.0 #0.05
+
+# Adaptive Gain
+k_cte: 0.1
+k_cte_dot: 0.1
+
+k_yaw: 0.6
+k_yaw_dot: 0.6
+
+k_curve: 15.0
+
+k_steer: 0.4
+k_curve_r: 10
+
+k_speed_q: 0.5
+k_speed_r: 1.0
+
+# Low Pass Filter
+alpha: 0.9
+
+# RMS History
+history_size: 10
+
+# Weight Limits
+q_ct_min: 0.5
+q_ct_max: 50.0
+
+q_yaw_min: 1.0
+q_yaw_max: 30.0
+
+r_steer_min: 0.005
+r_steer_max: 90.0 #0.1
+
+path_resolution: 0.1
+future: 90
+
+curve_throttle: 0.01
+endcurve_throttle: 0.008
+straight_throttle: 0.005

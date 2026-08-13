@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>global_path_recorder</name>
+  <version>0.0.0</version>
+  <description>Records a live global path from localization odometry.</description>
+
+  <maintainer email="acca@todo.todo">acca</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+
+  <export>
+  </export>
+</package>

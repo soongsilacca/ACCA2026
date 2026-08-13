@@ -1,0 +1,106 @@
+{
+  "verification_policy": "Only continuous-frame visual confirmation is accepted. Single-frame detector candidates are excluded.",
+  "raw_events": [
+    {
+      "run_id": "multimodal__2026-07-22-13-25-28_08d297cf",
+      "name": "verified_dynamic_pedestrian_crossing_after_static_box",
+      "obstacle_kind": "dynamic",
+      "obstacle_class": "pedestrian",
+      "frame_start": 804,
+      "frame_conflict_start": 808,
+      "frame_conflict_end": 822,
+      "frame_end": 824,
+      "signal_context": "ego signal is green during approach",
+      "ego_speed_mps": {
+        "frame_804": 8.71,
+        "frame_808": 4.73,
+        "frame_810": 1.76,
+        "frame_812": 0.36,
+        "frame_814": 0.35,
+        "frame_820": 3.93
+      },
+      "verification": "pedestrian moves right-to-left across the ego route; ego brakes to approximately 0.35 m/s and resumes",
+      "processed_sample_coverage": "current_frame_idx jumps from 796 to 835, so frames containing the visible pedestrian are not model input samples",
+      "motion_state_label_issue": "the surrounding samples are labeled DRIVE because the existing classifier checks only the 4-second endpoint speed and endpoint distance; the transient stop is missed"
+    }
+  ],
+  "samples": [
+    {
+      "split": "val",
+      "dataset_sample_index": 816,
+      "run_id": "multimodal__2026-07-22-13-25-28_08d297cf",
+      "sample_id": 114,
+      "name": "verified_static_box_approach",
+      "category": "verified_static_obstacle",
+      "group": "verified static obstacle / lane box",
+      "obstacle_kind": "static",
+      "obstacle_verification": "wooden box remains fixed while ego approaches; frame 679"
+    },
+    {
+      "split": "val",
+      "dataset_sample_index": 817,
+      "run_id": "multimodal__2026-07-22-13-25-28_08d297cf",
+      "sample_id": 115,
+      "name": "verified_static_box_pass",
+      "category": "verified_static_obstacle",
+      "group": "verified static obstacle / lane box",
+      "obstacle_kind": "static",
+      "obstacle_verification": "wooden box remains fixed while ego passes; frame 684"
+    },
+    {
+      "split": "val",
+      "dataset_sample_index": 1030,
+      "run_id": "multimodal__2026-07-22-13-25-28_08d297cf",
+      "sample_id": 328,
+      "name": "verified_dynamic_crossing_car_approach_01",
+      "category": "verified_dynamic_obstacle",
+      "group": "verified dynamic obstacle / crossing white car",
+      "obstacle_kind": "dynamic",
+      "obstacle_verification": "white car changes position independently across frames 1308-1328"
+    },
+    {
+      "split": "val",
+      "dataset_sample_index": 1034,
+      "run_id": "multimodal__2026-07-22-13-25-28_08d297cf",
+      "sample_id": 332,
+      "name": "verified_dynamic_crossing_car_approach_02",
+      "category": "verified_dynamic_obstacle",
+      "group": "verified dynamic obstacle / crossing white car",
+      "obstacle_kind": "dynamic",
+      "obstacle_verification": "white car changes position independently across frames 1308-1328"
+    },
+    {
+      "split": "val",
+      "dataset_sample_index": 1038,
+      "run_id": "multimodal__2026-07-22-13-25-28_08d297cf",
+      "sample_id": 336,
+      "name": "verified_dynamic_crossing_car_entry",
+      "category": "verified_dynamic_obstacle",
+      "group": "verified dynamic obstacle / crossing white car",
+      "obstacle_kind": "dynamic",
+      "obstacle_verification": "white car enters ego path; frame 1317"
+    },
+    {
+      "split": "val",
+      "dataset_sample_index": 1040,
+      "run_id": "multimodal__2026-07-22-13-25-28_08d297cf",
+      "sample_id": 338,
+      "name": "verified_dynamic_crossing_car_middle",
+      "category": "verified_dynamic_obstacle",
+      "group": "verified dynamic obstacle / crossing white car",
+      "obstacle_kind": "dynamic",
+      "obstacle_verification": "white car crosses ego path; frame 1321"
+    },
+    {
+      "split": "val",
+      "dataset_sample_index": 1042,
+      "run_id": "multimodal__2026-07-22-13-25-28_08d297cf",
+      "sample_id": 340,
+      "name": "verified_dynamic_crossing_car_exit",
+      "category": "verified_dynamic_obstacle",
+      "group": "verified dynamic obstacle / crossing white car",
+      "obstacle_kind": "dynamic",
+      "obstacle_verification": "white car exits ego path; frame 1328"
+    }
+  ]
+}

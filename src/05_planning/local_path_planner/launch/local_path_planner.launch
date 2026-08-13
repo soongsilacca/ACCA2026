@@ -1,6 +1,0 @@
-<launch>
-  <!-- MGeo HD Map Link Based Local Path Planner Node -->
-  <node pkg="local_path_planner" type="mgeo_local_planner_node.py" name="local_path_planner" output="screen">
-    <rosparam command="load" file="$(find local_path_planner)/config/local_planner_params.yaml" />
-  </node>
-</launch>

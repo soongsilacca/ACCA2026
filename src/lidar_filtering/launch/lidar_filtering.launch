@@ -1,0 +1,37 @@
+<launch>
+    <node pkg="lidar_filtering" type="pointcloud_crop_node" name="pointcloud_crop_node" output="screen">
+        <!-- Input and Output topics -->
+        <param name="input_topic" value="/velodyne_points" />
+        <param name="output_topic" value="/velodyne_points_cropped" />
+
+        <!-- Outer ROI in the incoming velodyne frame -->
+        <param name="min_x" value="-10.0" />
+        <param name="max_x" value="50.0" />
+        <param name="min_y" value="-30.0" />
+        <param name="max_y" value="30.0" />
+        <param name="min_z" value="-3.0" />
+        <param name="max_z" value="3.0" />
+
+        <!-- Remove only the vehicle polygon selected in RViz. The third pose value is yaw, so only XY is used. -->
+        <param name="remove_footprint" value="true" />
+        <rosparam param="footprint_x">[0.053, 0.066, -4.925, -4.947]</rosparam>
+        <rosparam param="footprint_y">[-1.318, 1.330, 1.310, -1.040]</rosparam>
+        <param name="footprint_min_z" value="-10.0" />
+        <param name="footprint_max_z" value="10.0" />
+    </node>
+
+    <!-- PointCloud Ray Ground Filter Node -->
+    <node pkg="lidar_filtering" type="pointcloud_ray_filter_node" name="pointcloud_ray_filter_node" output="screen">
+        <param name="input_topic" value="/velodyne_points_cropped" />
+        <param name="output_no_ground_topic" value="/velodyne_points_filtered" /> <!-- Non-ground (obstacles) are output here -->
+        <param name="publish_ground" value="false" />
+        
+        <!-- Ray filtering parameters -->
+        <param name="sensor_height" value="0.68" /> <!-- height of lidar from ground -->
+        <param name="local_max_slope" value="10.0" />
+        <param name="general_max_slope" value="3.0" />
+        <param name="min_height_threshold" value="0.1" />
+        <param name="radial_divider_angle" value="0.18" />
+    </node>
+
+</launch>

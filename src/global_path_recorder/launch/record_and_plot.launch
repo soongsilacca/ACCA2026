@@ -1,0 +1,21 @@
+<launch>
+  <arg name="odom_topic" default="/localization/kinematic_state" />
+  <arg name="path_topic" default="/global_path" />
+  <arg name="csv_path" default="/tmp/global_path.csv" />
+  <arg name="png_path" default="/tmp/global_path_plot.png" />
+  <arg name="sample_distance" default="0.1" />
+  <arg name="default_token" default="0" />
+
+  <include file="$(find global_path_recorder)/launch/global_path_recorder.launch">
+    <arg name="odom_topic" value="$(arg odom_topic)" />
+    <arg name="path_topic" value="$(arg path_topic)" />
+    <arg name="csv_path" value="$(arg csv_path)" />
+    <arg name="sample_distance" value="$(arg sample_distance)" />
+    <arg name="default_token" value="$(arg default_token)" />
+  </include>
+
+  <include file="$(find global_path_recorder)/launch/global_path_plotter.launch">
+    <arg name="path_topic" value="$(arg path_topic)" />
+    <arg name="png_path" value="$(arg png_path)" />
+  </include>
+</launch>

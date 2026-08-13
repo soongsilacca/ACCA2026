@@ -1,0 +1,118 @@
+<launch>
+  <!-- Start the complete MORAI sensor/UDP/localization preprocessing stack. -->
+  <arg name="launch_sensors" default="true" />
+  <arg name="use_sim_time" default="false" />
+  <arg name="global_path_csv"
+       default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+  <arg name="record_bag" default="false" />
+  <arg name="bag_prefix" default="$(env HOME)/acca_ws/multimodal_" />
+  <arg name="camera_jpeg_quality" default="80" />
+  <arg name="ego_status_port" default="9011" />
+  <arg name="device_ip" default="" />
+  <arg name="velodyne_port" default="2368" />
+  <arg name="velodyne_frame" default="velodyne" />
+  <arg name="velodyne_rpm" default="900.0" />
+  <arg name="velodyne_min_range" default="0.4" />
+  <arg name="velodyne_max_range" default="130.0" />
+  <arg name="velodyne_pcap" default="" />
+
+  <arg name="use_cuda" default="true" />
+  <arg name="run_model" default="true" />
+  <arg name="mpc_path_topic"
+       default="/multimodal_learning/predicted_path" />
+  <arg name="smoothing_strength" default="8.0" />
+  <arg name="path_spacing" default="0.1" />
+  <arg name="prediction_timeout" default="1.0" />
+  <arg name="sync_slop" default="0.25" />
+  <arg name="ai_path_timeout" default="1.5" />
+  <arg name="model_source_dir"
+       default="/media/acca/UBUNTU 20_0" />
+  <arg name="checkpoint_path"
+       default="/media/acca/UBUNTU 20_0/epoch_014.pt" />
+  <arg name="artifact_zip"
+       default="/media/acca/UBUNTU 20_0/trajectory_smoothing.zip" />
+
+  <group if="$(arg launch_sensors)">
+    <!-- MORAI GPS, IMU and cameras. -->
+    <include file="$(find morai_udp_bridge)/launch/sensors.launch" />
+
+    <!-- MORAI vehicle status/control, using the configured simulator port. -->
+    <include file="$(find morai_udp_bridge)/launch/ego_network.launch">
+      <arg name="ego_status_port" value="$(arg ego_status_port)" />
+      <arg name="enable_ctrl_sender" value="true" />
+    </include>
+
+    <!-- Velodyne input matching MORAI's 15 Hz / 900 RPM sensor setting. -->
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
+      <arg name="device_ip" value="$(arg device_ip)" />
+      <arg name="port" value="$(arg velodyne_port)" />
+      <arg name="frame_id" value="$(arg velodyne_frame)" />
+      <arg name="rpm" value="$(arg velodyne_rpm)" />
+      <arg name="min_range" value="$(arg velodyne_min_range)" />
+      <arg name="max_range" value="$(arg velodyne_max_range)" />
+      <arg name="pcap" value="$(arg velodyne_pcap)" />
+    </include>
+
+    <!-- Camera topics required by inference_node.py. -->
+    <param name="/camera/front/image/compressed/jpeg_quality"
+           value="$(arg camera_jpeg_quality)" type="int" />
+    <param name="/camera/left/image/compressed/jpeg_quality"
+           value="$(arg camera_jpeg_quality)" type="int" />
+    <param name="/camera/right/image/compressed/jpeg_quality"
+           value="$(arg camera_jpeg_quality)" type="int" />
+
+    <node pkg="image_transport"
+          type="republish"
+          name="morai_front_camera_compressor"
+          args="raw in:=/camera/front/image_raw compressed out:=/camera/front/image"
+          output="screen" />
+    <node pkg="image_transport"
+          type="republish"
+          name="morai_left_camera_compressor"
+          args="raw in:=/camera/left/image_raw compressed out:=/camera/left/image"
+          output="screen" />
+    <node pkg="image_transport"
+          type="republish"
+          name="morai_right_camera_compressor"
+          args="raw in:=/camera/right/image_raw compressed out:=/camera/right/image"
+          output="screen" />
+
+    <!-- Includes every static sensor TF plus map/odom/base_link localization. -->
+    <include file="$(find localization)/launch/localization_global.launch">
+      <arg name="use_sim_time" value="$(arg use_sim_time)" />
+    </include>
+
+    <include file="$(find mgeo_route_publisher)/launch/mgeo_route_publisher.launch">
+      <arg name="global_path_csv" value="$(arg global_path_csv)" />
+    </include>
+
+    <!-- /velodyne_points -> /velodyne_points_filtered -->
+    <include file="$(find lidar_filtering)/launch/lidar_filtering.launch" />
+
+    <group if="$(arg record_bag)">
+      <include file="$(find multimodal_learning)/launch/record_training_bag.launch">
+        <arg name="bag_prefix" value="$(arg bag_prefix)" />
+      </include>
+    </group>
+  </group>
+
+  <group if="$(arg run_model)">
+    <include file="$(find multimodal_learning)/launch/inference.launch">
+      <arg name="use_cuda" value="$(arg use_cuda)" />
+      <arg name="model_source_dir" value="$(arg model_source_dir)" />
+      <arg name="checkpoint_path" value="$(arg checkpoint_path)" />
+      <arg name="artifact_zip" value="$(arg artifact_zip)" />
+      <arg name="smoothing_strength" value="$(arg smoothing_strength)" />
+      <arg name="path_spacing" value="$(arg path_spacing)" />
+      <arg name="prediction_timeout" value="$(arg prediction_timeout)" />
+      <arg name="sync_slop" value="$(arg sync_slop)" />
+    </include>
+  </group>
+
+  <include file="$(find control)/launch/control_mpc_with_weight.launch">
+    <arg name="path_topic" value="$(arg mpc_path_topic)" />
+    <arg name="ai_path_timeout" value="$(arg ai_path_timeout)" />
+    <arg name="target_velocity_topic" value="/target_velocity" />
+    <arg name="launch_stack" value="false" />
+  </include>
+</launch>

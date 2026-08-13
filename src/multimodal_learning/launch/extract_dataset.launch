@@ -1,0 +1,9 @@
+<launch>
+  <arg name="bag" />
+  <arg name="output" default="$(env HOME)/.ros/multimodal_dataset" />
+  <arg name="topics_config" default="$(find multimodal_learning)/config/topics.yaml" />
+  <arg name="dataset_config" default="$(find multimodal_learning)/config/dataset.yaml" />
+  <node pkg="multimodal_learning" type="extract_bag_dataset.py" name="extract_multimodal_dataset"
+        args="$(arg bag) --output $(arg output) --topics $(arg topics_config) --dataset-config $(arg dataset_config)"
+        output="screen" required="true" />
+</launch>

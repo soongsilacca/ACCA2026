@@ -1,0 +1,21 @@
+model_name: multi_view_temporal_trajectory_planner_v2
+hidden_dim: 192
+attention_heads: 4
+spatial_grid_size: 4
+map_transformer_layers: 2
+spatial_fusion_layers: 2
+route_fusion_layers: 2
+gru_layers: 1
+history_frames: 5
+prediction_horizon: 20
+prediction_modes: 3
+dynamic_queries: 8
+camera_views: 3
+camera_pretrained: true
+lidar_channels: [32, 64, 128, 192]
+map_feature_dim: 8
+route_feature_dim: 4
+ego_feature_dim: 13
+signal_classes: 4
+ttc_bins: 5
+dropout: 0.1

@@ -1,0 +1,94 @@
+<launch>
+  <!-- Shared stack options -->
+  <arg name="use_sim_time" default="false" />
+  <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+
+  <!-- VLP-16 options -->
+  <arg name="device_ip" default="" />
+  <arg name="velodyne_port" default="2368" />
+  <arg name="frame_id" default="velodyne" />
+  <arg name="min_range" default="0.4" />
+  <arg name="max_range" default="130.0" />
+  <!-- final_Sen.json sensorPeriod=0.0666667 s => 15 rotations/s => 900 RPM -->
+  <arg name="rpm" default="900.0" />
+  <arg name="pcap" default="" />
+  <!-- MORAI Ego Vehicle Status destination port -->
+  <arg name="ego_status_port" default="9011" />
+  <arg name="enable_ctrl_sender" default="false" />
+  <!-- Camera compression / optional training-bag recording -->
+  <arg name="camera_jpeg_quality" default="80" />
+  <arg name="record_bag" default="false" />
+  <arg name="bag_prefix" default="$(env HOME)/acca_ws/multimodal_" />
+
+  <!--
+    MORAI sensor input remains implemented by morai_connect. Include its
+    stable component launches directly so this stack does not depend on the
+    argument surface of the optional morai_bridge.launch wrapper.
+  -->
+  <include file="$(find morai_udp_bridge)/launch/sensors.launch" />
+  <include file="$(find morai_udp_bridge)/launch/ego_network.launch">
+    <arg name="ego_status_port" value="$(arg ego_status_port)" />
+    <arg name="enable_ctrl_sender" value="$(arg enable_ctrl_sender)" />
+  </include>
+
+  <!-- /velodyne_points -->
+  <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
+    <arg name="device_ip" value="$(arg device_ip)" />
+    <arg name="port" value="$(arg velodyne_port)" />
+    <arg name="frame_id" value="$(arg frame_id)" />
+    <arg name="min_range" value="$(arg min_range)" />
+    <arg name="max_range" value="$(arg max_range)" />
+    <arg name="rpm" value="$(arg rpm)" />
+    <arg name="pcap" value="$(arg pcap)" />
+  </include>
+
+  <!--
+    Model/recording camera inputs. The MORAI bridge still receives raw images,
+    but bags and the planner consume only these JPEG-compressed topics.
+  -->
+  <param name="/camera/front/image/compressed/jpeg_quality"
+         value="$(arg camera_jpeg_quality)" type="int" />
+  <param name="/camera/left/image/compressed/jpeg_quality"
+         value="$(arg camera_jpeg_quality)" type="int" />
+  <param name="/camera/right/image/compressed/jpeg_quality"
+         value="$(arg camera_jpeg_quality)" type="int" />
+
+  <node pkg="image_transport"
+        type="republish"
+        name="morai_front_camera_compressor"
+        args="raw in:=/camera/front/image_raw compressed out:=/camera/front/image"
+        output="screen" />
+  <node pkg="image_transport"
+        type="republish"
+        name="morai_left_camera_compressor"
+        args="raw in:=/camera/left/image_raw compressed out:=/camera/left/image"
+        output="screen" />
+  <node pkg="image_transport"
+        type="republish"
+        name="morai_right_camera_compressor"
+        args="raw in:=/camera/right/image_raw compressed out:=/camera/right/image"
+        output="screen" />
+
+  <!-- /localization/kinematic_state -->
+  <include file="$(find localization)/launch/localization_global.launch">
+    <arg name="use_sim_time" value="$(arg use_sim_time)" />
+  </include>
+
+  <!-- /global_path, /local_route, /mgeo_tokens -->
+  <include file="$(find mgeo_route_publisher)/launch/mgeo_route_publisher.launch">
+    <arg name="global_path_csv" value="$(arg global_path_csv)" />
+  </include>
+
+  <!--
+    /velodyne_points_cropped is an intermediate vehicle-footprint removal topic.
+    /velodyne_points_filtered is the only final LiDAR filter output and model input.
+  -->
+  <include file="$(find lidar_filtering)/launch/lidar_filtering.launch" />
+
+  <!-- Set record_bag:=true to record only model inputs (no raw camera topics). -->
+  <group if="$(arg record_bag)">
+    <include file="$(find multimodal_learning)/launch/record_training_bag.launch">
+      <arg name="bag_prefix" value="$(arg bag_prefix)" />
+    </include>
+  </group>
+</launch>

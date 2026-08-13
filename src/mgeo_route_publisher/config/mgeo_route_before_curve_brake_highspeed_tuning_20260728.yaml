@@ -1,0 +1,35 @@
+odom_topic: /localization/kinematic_state
+global_path_csv: ~/acca_ws/global_path/global_path.csv
+global_path_topic: /global_path
+local_route_topic: /local_route
+mgeo_token_topic: /mgeo_tokens
+
+map_frame: map
+ego_frame: base_link
+publish_hz: 10.0
+
+# Local route is published in ego coordinates and metric units.
+route_points: 64
+route_lookbehind_points: 2
+# Global CSV is sampled at 0.1m; use every tenth point for 1.0m route tokens.
+route_sample_stride: 10
+max_path_match_distance: 20.0
+
+# V2 schema: [x/r, y/r, tangent_x, tangent_y, curvature*10,
+#             lane_half_width/r, lane_type/10, speed_zone_flag]
+map_radius: 60.0
+max_map_tokens: 64
+link_sample_spacing: 3.0
+
+# MPC speed profile: MGeo link limit + global-path curvature limit.
+mgeo_target_velocity_topic: /mgeo_target_velocity
+speed_cap_kph: 100.0
+normal_road_speed_kph: 60.0
+highway_speed_kph: 100.0
+default_speed_kph: 60.0
+max_lateral_accel: 1.8
+max_longitudinal_decel: 3.0
+target_speed_decel_rate: 1.5
+speed_reaction_time: 0.5
+speed_lookahead_m: 20.0
+speed_filter_alpha: 0.8

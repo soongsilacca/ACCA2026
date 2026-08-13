@@ -1,0 +1,24 @@
+front_image_width: 640
+front_image_height: 360
+side_image_width: 320
+side_image_height: 240
+bev_width: 256
+bev_height: 256
+bev_x_range: [-10.0, 50.0]
+bev_y_range: [-30.0, 30.0]
+max_map_tokens: 64
+max_route_tokens: 64
+map_token_dim: 8
+route_token_dim: 4
+route_normalization_m: 60.0
+local_route_frame: base_link
+# MORAI EgoVehicleStatus velocity is published in km/h. Convert all model
+# inputs and target-speed labels to SI units (m/s).
+vehicle_velocity_scale: 0.2777777777777778
+sample_period: 0.1
+sync_tolerance: 0.1
+history_frames: 5
+history_interval: 0.25
+prediction_horizon: 20
+prediction_interval: 0.2
+output_dir: ~/.ros/multimodal_dataset_v2

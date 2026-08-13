@@ -1,0 +1,23 @@
+<launch>
+    <arg name="objects_topic" default="/estimation/objects_with_velocity" />
+    <arg name="odometry_topic" default="/localization/kinematic_state" />
+    <arg name="control_topic" default="/ctrl_cmd" />
+
+    <!-- TTC Publisher Node -->
+    <node pkg="TTC" type="ttc_pub_node" name="ttc_pub_node" output="screen">
+        <!-- 파라미터 설정 (이곳에서 수치를 수정하세요) -->
+        <param name="ttc_danger_threshold" value="1.2" />
+        <param name="ego_width" value="1.8" />
+        <param name="lpf_alpha" value="0.2" />
+        <param name="obstacle_detect_dist" value="30.0" />
+        <param name="publish_hz" value="10.0" />
+        <param name="objects_topic" value="$(arg objects_topic)" />
+        <param name="odometry_topic" value="$(arg odometry_topic)" />
+    </node>
+
+    <!-- TTC Subscriber Node -->
+    <node pkg="TTC" type="ttc_sub_node" name="ttc_sub_node" output="screen">
+        <param name="ttc_danger_threshold" value="1.2" />
+        <param name="control_topic" value="$(arg control_topic)" />
+    </node>
+</launch>

@@ -1,0 +1,29 @@
+<launch>
+  <!-- ════════════════════════════════════════════════════════════════
+       MORAI Domain Randomization & Scenario Auto-Loader Launch File
+       1. domain_randomizer.py: 시나리오 구역별 랜덤화 JSON 파일 생성
+       2. scenario_load_sender_node.py: 생성된 시나리오 UDP 로드 전송 (Port 9095)
+       ════════════════════════════════════════════════════════════════ -->
+
+  <!-- 기본 파일 경로 설정 -->
+  <arg name="input_scene" default="/home/jinju/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/2026_molit_comp_sample_scene.json" />
+  <arg name="output_scene" default="/home/jinju/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/randomized_final.json" />
+  <arg name="ip" default="127.0.0.1" />
+  <arg name="port" default="9095" />
+
+  <!-- 1. 도메인 랜덤마이저 노드 (실행 시 시나리오 JSON 랜덤 생성) -->
+  <node name="domain_randomizer" pkg="morai_udp_bridge" type="domain_randomizer.py" output="screen">
+    <param name="input" value="$(arg input_scene)" />
+    <param name="output" value="$(arg output_scene)" />
+    <param name="count" value="1" />
+  </node>
+
+  <!-- 2. 시나리오 로더 노드 (랜덤 생성된 시나리오를 MORAI 시뮬레이터로 UDP 로드) -->
+  <node name="scenario_load_sender" pkg="morai_udp_bridge" type="scenario_load_sender_node.py" output="screen">
+    <param name="ip" value="$(arg ip)" />
+    <param name="port" value="$(arg port)" />
+    <param name="scenario_file" value="$(arg output_scene)" />
+    <param name="load_on_start" value="true" />
+  </node>
+
+</launch>

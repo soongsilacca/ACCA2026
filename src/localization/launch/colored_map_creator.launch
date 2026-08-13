@@ -1,0 +1,112 @@
+<launch>
+    <node pkg="localization" type="colored_map_creator_node" name="colored_map_creator" output="screen">
+
+        <!-- ─────────────────────────────────────────── -->
+        <!-- I/O                                          -->
+        <!-- ─────────────────────────────────────────── -->
+        <param name="bag_path" value="/home/acca/bagfile/2026-08-13-14-07-38.bag" />
+        <param name="save_dir" value="/home/acca/acca_ws/src/localization/pcd" />
+
+        <!-- ─────────────────────────────────────────── -->
+        <!-- Topics & Preprocessing                       -->
+        <!-- ─────────────────────────────────────────── -->
+        <param name="lidar_topic" value="/velodyne_points" />
+        <param name="use_color"   value="true" />
+        <param name="use_multi_camera" value="true" />
+
+        <!-- CropBox filtering configuration -->
+        <param name="use_cropping"   value="true" />
+        <param name="crop_min_x"    value="0.5" />
+        <param name="crop_max_x"    value="100.0" />
+        <param name="crop_min_y"    value="-100.0" />
+        <param name="crop_max_y"    value="100.0" />
+        <param name="crop_min_z"    value="-20.0" />
+        <param name="crop_max_z"    value="100.0" />
+        <param name="crop_negative" value="false" />
+
+        <!-- ─────────────────────────────────────────── -->
+        <!-- TF Frames                                    -->
+        <!-- ─────────────────────────────────────────── -->
+        <param name="map_frame"      value="map" />
+        <param name="velodyne_frame" value="velodyne" />
+
+        <!-- ─────────────────────────────────────────── -->
+        <!-- Camera Configuration (3 Cameras)             -->
+        <!-- ─────────────────────────────────────────── -->
+        <!-- Front Camera: 1280x720, FOV 90 deg -> fx=fy=640.0, cx=640.0, cy=360.0 -->
+        <param name="front_image_topic"  value="/camera/front/image_raw" />
+        <param name="front_camera_frame" value="camera_front" />
+        <param name="front_fx" value="640.0" />
+        <param name="front_fy" value="640.0" />
+        <param name="front_cx" value="640.0" />
+        <param name="front_cy" value="360.0" />
+
+        <!-- Left Camera: 640x480, FOV 130 deg -> fx=fy=149.22, cx=320.0, cy=240.0 -->
+        <param name="left_image_topic"  value="/camera/left/image_raw" />
+        <param name="left_camera_frame" value="camera_left" />
+        <param name="left_fx" value="149.22" />
+        <param name="left_fy" value="149.22" />
+        <param name="left_cx" value="320.0" />
+        <param name="left_cy" value="240.0" />
+
+        <!-- Right Camera: 640x480, FOV 130 deg -> fx=fy=149.22, cx=320.0, cy=240.0 -->
+        <param name="right_image_topic"  value="/camera/right/image_raw" />
+        <param name="right_camera_frame" value="camera_right" />
+        <param name="right_fx" value="149.22" />
+        <param name="right_fy" value="149.22" />
+        <param name="right_cx" value="320.0" />
+        <param name="right_cy" value="240.0" />
+
+        <!-- Fallback Single Camera Configuration -->
+        <param name="image_topic"  value="/image_jpeg/compressed" />
+        <param name="camera_frame" value="Camera" />
+        <param name="fx" value="320.0" />
+        <param name="fy" value="320.0" />
+        <param name="cx" value="320.0" />
+        <param name="cy" value="240.0" />
+
+        <!-- Distortion coefficients [k1, k2, p1, p2, k3] -->
+        <param name="k1" value="0.0" />
+        <param name="k2" value="0.0" />
+        <param name="p1" value="0.0" />
+        <param name="p2" value="0.0" />
+        <param name="k3" value="0.0" />
+
+        <!-- ─────────────────────────────────────────── -->
+        <!-- Voxel Grid                                   -->
+        <!-- ─────────────────────────────────────────── -->
+        <!-- Local: pre-filter each incoming scan (larger = faster, lower resolution) -->
+        <param name="voxel_size_local"  value="0.3" />
+        <!-- Global: final output PCD resolution (smaller = denser map) -->
+        <param name="voxel_size_global" value="0.1" />
+
+        <!-- ─────────────────────────────────────────── -->
+        <!-- FastGICP Registration                        -->
+        <!-- ─────────────────────────────────────────── -->
+        <!-- Number of OpenMP threads for GICP (i9-12900H: 20 cores, leave 4 for system) -->
+        <param name="gicp_threads"       value="16" />
+        <!-- Number of nearest neighbors for covariance estimation -->
+        <param name="gicp_neighbors"     value="10" />
+        <!-- Max correspondence distance (m). Increase if TF drift is large -->
+        <param name="gicp_max_dist"      value="1.0" />
+        <!-- Convergence threshold. Smaller = more precise but slower -->
+        <param name="gicp_epsilon"       value="0.01" />
+        <!-- Min global map size (pts) before GICP kicks in. Trust TF until then -->
+        <param name="gicp_min_map_size"  value="1000" />
+        <!-- Use GICP for scan refinement (true) or trust TF only (false, extremely fast) -->
+        <param name="use_gicp"           value="false" />
+
+        <!-- ─────────────────────────────────────────── -->
+        <!-- Synchronization, Threading & Logging        -->
+        <!-- ─────────────────────────────────────────── -->
+        <!-- Max time gap (s) between LiDAR frame and closest image -->
+        <param name="time_sync_threshold" value="0.03" />
+        <!-- Print progress every N frames -->
+        <param name="log_interval"        value="50" />
+        <!-- CPU yielding delay (seconds) after processing each frame to prevent system freeze -->
+        <param name="sleep_delay"        value="0.005" />
+        <!-- Number of threads OpenCV can use. Set to 1-4 to avoid CPU hogging. -->
+        <param name="opencv_threads"     value="4" />
+
+    </node>
+</launch>

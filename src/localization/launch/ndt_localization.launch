@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Arguments -->
+  <arg name="nodelet_manager" default="ndt_nodelet_manager" />
+  <arg name="points_topic" default="/velodyne_points_cropped" />
+  <arg name="odom_child_frame_id" default="base_link" />
+  <arg name="map_pcd_path" default="/home/acca/acca_ws/src/localization/pcd/map_intensity.pcd" />
+
+  <!-- Set use_global_localization to true to automatically estimate initial pose in the map -->
+  <arg name="use_global_localization" default="false" />
+  <arg name="use_imu" default="true" />
+  <arg name="imu_topic" default="/imu" />
+
+  <!-- Global localization engine -->
+  <include file="$(find hdl_global_localization)/launch/hdl_global_localization.launch" if="$(arg use_global_localization)" />
+
+  <!-- Nodelet Manager -->
+  <node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager)" args="manager" output="screen"/>
+
+  <!-- 1. globalmap_server_nodelet -->
+  <node pkg="nodelet" type="nodelet" name="globalmap_server_nodelet" args="load hdl_localization/GlobalmapServerNodelet $(arg nodelet_manager)">
+    <param name="globalmap_pcd" value="$(arg map_pcd_path)" />
+    <param name="convert_utm_to_local" value="false" />
+    <param name="downsample_resolution" value="0.5" />
+  </node>
+
+  <!-- 2. hdl_localization_nodelet -->
+  <node pkg="nodelet" type="nodelet" name="hdl_localization_nodelet" args="load hdl_localization/HdlLocalizationNodelet $(arg nodelet_manager)">
+    <!-- Input Remappings -->
+    <remap from="/velodyne_points" to="$(arg points_topic)" />
+    <remap from="/gpsimu_driver/imu_data" to="$(arg imu_topic)" />
+    
+    <!-- Output Remapping to feed into Global EKF -->
+    <remap from="/odom" to="/ndt_pose" />
+    
+    <!-- Input Remapping for automatic initial guess from GPS-based EKF global initializer -->
+    <remap from="/initialpose" to="/set_pose_global" />
+
+    <!-- Odometry frame settings -->
+    <param name="odom_child_frame_id" value="$(arg odom_child_frame_id)" />
+    <param name="robot_odom_frame_id" value="odom" />
+    
+    <!-- IMU configuration -->
+    <param name="use_imu" value="$(arg use_imu)" />
+    <param name="invert_acc" value="false" />
+    <param name="invert_gyro" value="false" />
+    <param name="cool_time_duration" value="2.0" />
+    
+    <!-- Disable internal TF publishing to let Global EKF publish map->odom TF -->
+    <param name="publish_tf" value="false" />
+    
+    <!-- Enable prediction based on raw odometry (leverages EKF local odom to push NDT guess forward) -->
+    <param name="enable_robot_odometry_prediction" value="true" />
+    
+    <!-- NDT alignment configurations -->
+    <param name="reg_method" value="NDT_OMP" />
+    <param name="ndt_neighbor_search_method" value="DIRECT7" />
+    <param name="ndt_neighbor_search_radius" value="15.0" />
+    <param name="ndt_resolution" value="2.0" />
+    <param name="downsample_resolution" value="0.5" />
+    
+    <!-- Global localization linkage -->
+    <param name="use_global_localization" value="$(arg use_global_localization)" />
+    
+    <!-- We initialize the pose estimator manually/automatically via EKF/GPS or RViz -->
+    <param name="specify_init_pose" value="false" />
+    <param name="init_pos_x" value="0.0" />
+    <param name="init_pos_y" value="0.0" />
+    <param name="init_pos_z" value="0.0" />
+    <param name="init_ori_w" value="1.0" />
+    <param name="init_ori_x" value="0.0" />
+    <param name="init_ori_y" value="0.0" />
+    <param name="init_ori_z" value="0.0" />
+  </node>
+</launch>

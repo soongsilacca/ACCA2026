@@ -1,0 +1,100 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Name: Grid
+      Plane: XY
+      Plane Cell Count: 40
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 255; 45; 45
+      Enabled: true
+      Head Diameter: 0.3
+      Head Length: 0.2
+      Line Style: Lines
+      Line Width: 0.12
+      Name: Predicted Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0.12
+      Pose Style: None
+      Shaft Diameter: 0.1
+      Shaft Length: 0.1
+      Topic: /multimodal_learning/predicted_path
+    - Alpha: 0.65
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 40; 220; 70
+      Enabled: true
+      Line Style: Lines
+      Line Width: 0.06
+      Name: Local Route
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0.05
+      Pose Style: None
+      Topic: /local_route
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: Filtered LiDAR
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.05
+      Style: Points
+      Topic: /velodyne_points_filtered
+      Use Fixed Frame: true
+    - Class: rviz/TF
+      Enabled: true
+      Frame Timeout: 15
+      Marker Scale: 0.5
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+  Enabled: true
+  Global Options:
+    Background Color: 30; 30; 30
+    Default Light: true
+    Fixed Frame: base_link
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+  Views:
+    Current:
+      Class: rviz/TopDownOrtho
+      Angle: 0
+      Name: Top Down
+      Scale: 20
+      Target Frame: base_link
+Window Geometry:
+  Height: 900
+  Width: 1400

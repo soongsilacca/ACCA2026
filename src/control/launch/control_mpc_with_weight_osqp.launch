@@ -1,0 +1,52 @@
+<launch>
+  <arg name="path_topic" default="/global_path" />
+  <arg name="controller_mode" default="mpc" />
+  <arg name="path_start_index" default="0" />
+  <arg name="ai_path_timeout" default="1.5" />
+  <arg name="target_velocity_topic" default="/mgeo_target_velocity" />
+  <arg name="mode_score_topic"
+       default="/multimodal_learning/mode_scores" />
+  <arg name="stop_full_brake_threshold" default="0.8" />
+  <arg name="stop_latch_threshold" default="0.5" />
+  <arg name="stop_release_drive_threshold" default="0.8" />
+  <arg name="stop_release_hold_sec" default="2.0" />
+  <arg name="mode_score_timeout" default="1.5" />
+  <arg name="launch_stack" default="true" />
+  <arg name="use_sim_time" default="false" />
+  <arg name="global_path_csv"
+       default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+
+  <!-- Standalone global-path mode: sensors, TF, localization and MGeo route. -->
+  <group if="$(arg launch_stack)">
+    <include file="$(find multimodal_learning)/launch/multimodal_sensors.launch">
+      <arg name="use_sim_time" value="$(arg use_sim_time)" />
+      <arg name="global_path_csv" value="$(arg global_path_csv)" />
+      <arg name="record_bag" value="false" />
+      <arg name="enable_ctrl_sender" value="true" />
+    </include>
+  </group>
+
+  <!-- Adaptive weight publisher -->
+  <node pkg="control" type="adaptive_weight.py" name="adaptive_weight" output="screen" />
+
+  <!-- MPC controller node that subscribes to /mpc_weight -->
+  <node pkg="control" type="mpc_node_osqp2.py" name="mpc_trajectory_follower" output="screen">
+    <param name="controller_mode" value="$(arg controller_mode)" />
+    <param name="path_topic" value="$(arg path_topic)" />
+    <param name="path_start_index" value="$(arg path_start_index)" />
+    <param name="ai_path_timeout" value="$(arg ai_path_timeout)" />
+    <param name="target_velocity_topic" value="$(arg target_velocity_topic)" />
+    <param name="mode_score_topic" value="$(arg mode_score_topic)" />
+    <param name="stop_full_brake_threshold"
+           value="$(arg stop_full_brake_threshold)" />
+    <param name="stop_latch_threshold"
+           value="$(arg stop_latch_threshold)" />
+    <param name="stop_release_drive_threshold"
+           value="$(arg stop_release_drive_threshold)" />
+    <param name="stop_release_hold_sec"
+           value="$(arg stop_release_hold_sec)" />
+    <param name="mode_score_timeout" value="$(arg mode_score_timeout)" />
+    <param name="path_csv_path" value="$(arg global_path_csv)" />
+    <param name="log_csv_path" value="$(env HOME)/acca_ws/logs/mpc_tracking_log.csv" />
+  </node>
+</launch>

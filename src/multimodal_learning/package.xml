@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>multimodal_learning</name>
+  <version>0.1.0</version>
+  <description>Multi-View Temporal Trajectory Planner V2 for MORAI.</description>
+  <maintainer email="jinju@todo.todo">jinju</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <depend>rosbag</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>message_filters</depend>
+  <depend>morai_msgs</depend>
+  <exec_depend>rospkg</exec_depend>
+  <exec_depend>map_viz</exec_depend>
+  <exec_depend>localization</exec_depend>
+  <exec_depend>mgeo_route_publisher</exec_depend>
+  <exec_depend>velodyne_pointcloud</exec_depend>
+  <exec_depend>lidar_filtering</exec_depend>
+  <exec_depend>morai_udp_bridge</exec_depend>
+  <exec_depend>image_transport</exec_depend>
+  <export/>
+</package>

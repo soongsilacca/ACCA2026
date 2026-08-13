@@ -1,0 +1,55 @@
+<launch>
+  <!-- use_sim_time:
+       MORAI 실시간  → false (기본값)
+       rosbag 재생   → roslaunch localization localization_global.launch use_sim_time:=true -->
+  <arg name="use_sim_time" default="false" />
+  <!-- GPS와 MGeo visualizer가 반드시 같은 map 원점을 사용하도록 한 파일로 공유 -->
+  <arg name="global_info_file" default="$(find map_viz)/scripts/global_info.json" />
+  <param name="/use_sim_time" value="$(arg use_sim_time)" />
+
+  <!-- 1. Load Vehicle Parameters -->
+  <rosparam file="$(find localization)/config/car.yaml" command="load"/>
+
+  <!-- 2. Static TF Publishers -->
+  <include file="$(find localization)/launch/sensor_tf.launch" />
+
+
+  <!-- 3. GPS Node (publishes /gps_pose) -->
+  <node pkg="localization" type="gps_node.py" name="gps_node" output="screen">
+    <param name="rotate_by_initial_yaw" value="false" />
+    <param name="global_info_file" value="$(arg global_info_file)" />
+  </node>
+
+  <!-- 4. Wheel Odometry Node -->
+  <node pkg="localization" type="wheel_odom_node.py" name="wheel_odom_node" output="screen" />
+
+
+  <!-- 4.6. EKF Local Initializer (sets odom origin with IMU heading) -->
+  <node pkg="localization" type="ekf_local_initializer.py" name="ekf_local_initializer" output="screen" />
+
+  <!-- 4.7. EKF Global Initializer (sets map pose from GPS and IMU) -->
+  <node pkg="localization" type="ekf_global_initializer.py" name="ekf_global_initializer" output="screen" />
+
+  <!-- 5. Robot Localization EKF Node (Local: odom -> base_link) -->
+  <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se_local" clear_params="true">
+    <rosparam command="load" file="$(find localization)/config/ekf_local.yaml" />
+    <remap from="odometry/filtered" to="odometry/filtered_local" />
+    <remap from="/set_pose"         to="/set_pose_local" />
+  </node>
+
+  <!-- 6. Robot Localization EKF Node (Global: map -> odom) -->
+  <node pkg="robot_localization" type="ekf_localization_node" name="ekf_se_global" clear_params="true">
+    <rosparam command="load" file="$(find localization)/config/ekf_global.yaml" />
+    <remap from="odometry/filtered" to="/localization/kinematic_state" />
+    <remap from="/set_pose"         to="/set_pose_global" />
+  </node>
+
+
+  <!-- 8. OMP NDT Global Localization -->
+  <include file="$(find localization)/launch/ndt_localization.launch" />
+
+  <!-- 9. FAST_LIO SLAM / Mapping -->
+  <!-- <include file="$(find fast_lio)/launch/mapping_hdl32.launch">
+    <arg name="rviz" value="false" />
+  </include> -->
+</launch>

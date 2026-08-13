@@ -1,0 +1,27 @@
+<launch>
+  <!-- ========================================================
+       mgeo_marker_node launch file
+       Usage:
+         roslaunch map_viz mgeo_marker.launch
+  ======================================================== -->
+
+  <arg name="node_file"        default="$(find map_viz)/scripts/node_set.json" />
+  <arg name="link_file"        default="$(find map_viz)/scripts/link_set.json" />
+  <arg name="global_info_file" default="$(find map_viz)/scripts/global_info.json" />
+  
+  <arg name="frame_id"            default="map" />
+  <arg name="publish_hz"          default="0.5" />
+  <arg name="show_arrows"         default="true" />
+  
+  <node pkg="map_viz"
+        type="mgeo_marker_node.py"
+        name="mgeo_marker_node"
+        output="screen">
+    <param name="node_file"           value="$(arg node_file)" />
+    <param name="link_file"           value="$(arg link_file)" />
+    <param name="global_info_file"    value="$(arg global_info_file)" />
+    <param name="frame_id"            value="$(arg frame_id)" />
+    <param name="publish_hz"          value="$(arg publish_hz)" />
+    <param name="show_arrows"         value="$(arg show_arrows)" />
+  </node>
+</launch>

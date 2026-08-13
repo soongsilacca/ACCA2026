@@ -1,0 +1,17 @@
+# Compatibility profile for bags recorded before compressed camera topics
+# became the default. Pass this file with --topics when extracting old bags.
+camera_front_topic: /camera/front/image_raw
+camera_left_topic: /camera/left/image_raw
+camera_right_topic: /camera/right/image_raw
+lidar_topic: /velodyne_points_filtered
+odom_topic: /localization/kinematic_state
+imu_topic: /imu
+vehicle_status_topic: /morai/ego_vehicle_status
+gps_topic: /gps
+local_route_topic: /local_route
+mgeo_token_topic: /mgeo_tokens
+prediction_topic: /multimodal_learning/predicted_path
+target_speed_topic: /multimodal_learning/target_speeds
+mode_score_topic: /multimodal_learning/mode_scores
+queue_size: 20
+sync_slop: 0.1

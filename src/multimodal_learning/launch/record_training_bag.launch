@@ -1,0 +1,28 @@
+<launch>
+  <!-- Timestamp is appended automatically: PREFIX_YYYY-MM-DD-HH-MM-SS.bag -->
+  <arg name="bag_prefix" default="$(env HOME)/acca_ws/multimodal_" />
+  <arg name="compression" default="--lz4" />
+  <arg name="buffer_mb" default="2048" />
+
+  <!--
+    Deliberately explicit topic list. In particular, this excludes:
+      /camera/*/image_raw
+      /velodyne_points, /velodyne_packets, and cropped intermediate clouds
+  -->
+  <node pkg="rosbag" type="record" name="multimodal_bag_recorder" output="screen"
+        args="$(arg compression) --buffsize=$(arg buffer_mb) --output-prefix=$(arg bag_prefix)
+              /camera/front/image/compressed
+              /camera/left/image/compressed
+              /camera/right/image/compressed
+              /velodyne_points_filtered
+              /localization/kinematic_state
+              /imu
+              /morai/ego_vehicle_status
+              /morai/collision_data
+              /gps
+              /local_route
+              /mgeo_tokens
+              /global_path
+              /tf
+              /tf_static" />
+</launch>

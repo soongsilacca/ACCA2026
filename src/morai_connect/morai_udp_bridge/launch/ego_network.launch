@@ -1,0 +1,46 @@
+<launch>
+  <!-- ══════════════════════════════════════════════
+       MORAI UDP Bridge — Ego network nodes
+       CollisionData / EgoVehicleStatus
+       ══════════════════════════════════════════════ -->
+
+  <arg name="collision_port" default="9092" />
+  <arg name="collision_topic" default="/morai/collision_data" />
+
+  <arg name="ego_status_port" default="9009" />
+  <arg name="ego_status_topic" default="/morai/ego_vehicle_status" />
+
+  <arg name="ego_ctrl_port" default="9093" />
+  <arg name="ego_ctrl_topic" default="/ctrl_cmd" />
+  <arg name="enable_ctrl_sender" default="true" />
+
+  <!-- CollisionData  UDP 9092 → /morai/collision_data -->
+  <node name="morai_collision_data"
+        pkg="morai_udp_bridge"
+        type="collision_data_publisher_node.py"
+        output="screen">
+    <param name="port" value="$(arg collision_port)" />
+    <param name="topic" value="$(arg collision_topic)" />
+  </node>
+
+  <!-- EgoVehicleStatus  UDP 9009 → /morai/ego_vehicle_status -->
+  <node name="morai_ego_vehicle_status"
+        pkg="morai_udp_bridge"
+        type="ego_vehicle_status_publisher_node.py"
+        output="screen">
+    <param name="port" value="$(arg ego_status_port)" />
+    <param name="topic" value="$(arg ego_status_topic)" />
+  </node>
+
+  <!-- EgoCtrlCmd  /cmd → UDP 9093 -->
+  <node name="morai_ego_ctrl_sender"
+        pkg="morai_udp_bridge"
+        type="ego_ctrl_sender_node.py"
+        if="$(arg enable_ctrl_sender)"
+        output="screen">
+    <param name="ip" value="127.0.0.1" />
+    <param name="port" value="$(arg ego_ctrl_port)" />
+    <param name="cmd_topic" value="$(arg ego_ctrl_topic)" />
+  </node>
+
+</launch>

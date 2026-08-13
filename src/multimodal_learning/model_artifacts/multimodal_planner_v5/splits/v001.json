@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "split_unit": "run",
+  "seed": 2026,
+  "data_root": "/home/libok/morai_project/morai_dataset/processed/v001",
+  "splits": {
+    "train": [
+      "multimodal__2026-07-21-16-09-50_cb697de1",
+      "multimodal__2026-07-21-16-15-46_798b978a",
+      "multimodal__2026-07-21-16-21-19_cea59b3a",
+      "multimodal__2026-07-21-16-30-51_824d8aea",
+      "multimodal__2026-07-21-16-40-04_33d8f266",
+      "multimodal__2026-07-21-16-44-49_4733a4cf",
+      "multimodal__2026-07-22-12-49-38_b51ed5ec",
+      "multimodal__2026-07-22-12-56-15_9fc21252",
+      "multimodal__2026-07-22-13-03-00_022c0ee8",
+      "multimodal__2026-07-22-13-08-12_336aa08a",
+      "multimodal__2026-07-22-13-14-23_558a7117",
+      "multimodal__2026-07-22-13-20-33_d9b31b74",
+      "multimodal__2026-07-22-13-30-04_aac6597d",
+      "multimodal__2026-07-22-13-35-22_a2fd5a1d",
+      "multimodal__2026-07-22-13-41-42_5bac3ddc",
+      "multimodal__2026-07-23-14-41-47_c9103f98",
+      "multimodal__2026-07-23-14-51-06_80faeafb",
+      "multimodal__2026-07-23-15-12-20_84695b97",
+      "multimodal__2026-07-23-15-18-07_0d6c867f",
+      "multimodal__2026-07-23-15-24-10_eb1af3c8",
+      "multimodal__2026-07-23-15-31-29_23b05a61",
+      "multimodal__2026-07-23-15-36-22_39bd1af7",
+      "multimodal__2026-07-23-15-46-19_38e42553",
+      "multimodal__2026-07-23-16-03-35_4ad34032",
+      "multimodal__2026-07-23-16-16-59_a9bb964b",
+      "multimodal__2026-07-23-16-22-00_98e3bdfe",
+      "multimodal__2026-07-23-16-38-37_620f3c33",
+      "multimodal__2026-07-23-16-52-45_05ac68ae",
+      "multimodal__2026-07-24-12-35-48_913fb9fb",
+      "multimodal__2026-07-24-12-41-03_259e26d9",
+      "multimodal__2026-07-24-12-50-20_acd7d165",
+      "multimodal__2026-07-24-14-16-54_86229213",
+      "multimodal__2026-07-24-14-22-04_f037e755"
+    ],
+    "val": [
+      "multimodal__2026-07-21-16-51-23_09ddea89",
+      "multimodal__2026-07-22-13-25-28_08d297cf",
+      "multimodal__2026-07-23-15-41-02_eadf0fb7",
+      "multimodal__2026-07-23-16-26-41_c3429b00"
+    ],
+    "test": [
+      "multimodal__2026-07-22-12-43-40_57eff4a1",
+      "multimodal__2026-07-23-15-07-23_5ef0c120",
+      "multimodal__2026-07-23-16-32-00_1eb38860",
+      "multimodal__2026-07-24-14-11-27_3bc20d8c"
+    ]
+  }
+}

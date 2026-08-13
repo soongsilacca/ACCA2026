@@ -1,0 +1,22 @@
+<launch>
+    <!-- Static Transform Publisher -->
+    <!-- Usage: args="x y z yaw pitch roll frame_id child_frame_id" -->
+    <!-- Note: Angles are in radians -->
+
+    <!-- Example Lidar TF (Front of the vehicle) -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="lidar_tf_publisher" 
+          args="3.90 0.0 0.3 0.0 0.0 0.0 base_link velodyne" />
+
+    <!-- Example Camera TF (Slightly behind and lower than lidar) -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="camera_tf_publisher" 
+          args="4.0 0.0 0.3 0.0 0.0 0.0 base_link Camera" />
+
+    <!-- Example IMU TF (Center of the vehicle) -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="imu_tf_publisher" 
+          args="1.15 0.0 1.23 0.0 0.0 0.0 base_link IMU" />
+
+    <!-- Example GPS TF (Center of the vehicle) -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="gps_tf_publisher" 
+          args="1.15 0.0 1.23 0.0 0.0 0.0 base_link GPS" />
+
+</launch>

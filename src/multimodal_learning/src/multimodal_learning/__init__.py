@@ -1,0 +1,1 @@
+"""Multimodal trajectory learning package."""

@@ -1,0 +1,22 @@
+<launch>
+  <arg name="odom_topic" default="/localization/kinematic_state" />
+  <arg name="path_topic" default="/global_path" />
+  <arg name="csv_path" default="/tmp/global_path.csv" />
+  <arg name="sample_distance" default="0.1" />
+  <arg name="default_token" default="0" />
+
+  <node pkg="global_path_recorder"
+        type="global_path_recorder_node.py"
+        name="global_path_recorder_node"
+        output="screen">
+    <param name="odom_topic" value="$(arg odom_topic)" />
+    <param name="path_topic" value="$(arg path_topic)" />
+    <param name="csv_path" value="$(arg csv_path)" />
+    <param name="sample_distance" value="$(arg sample_distance)" />
+    <param name="default_token" value="$(arg default_token)" />
+    <param name="frame_id" value="map" />
+    <param name="publish_hz" value="10.0" />
+    <param name="write_csv" value="true" />
+    <param name="csv_rewrite_every_points" value="20" />
+  </node>
+</launch>

@@ -1,0 +1,16 @@
+<launch>
+  <arg name="path_topic" default="/global_path" />
+  <arg name="png_path" default="/tmp/global_path_plot.png" />
+  <arg name="save_png" default="true" />
+
+  <node pkg="global_path_recorder"
+        type="global_path_plotter_node.py"
+        name="global_path_plotter_node"
+        output="screen">
+    <param name="path_topic" value="$(arg path_topic)" />
+    <param name="png_path" value="$(arg png_path)" />
+    <param name="save_png" value="$(arg save_png)" />
+    <param name="update_hz" value="2.0" />
+    <param name="equal_axis" value="true" />
+  </node>
+</launch>
