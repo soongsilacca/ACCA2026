@@ -25,6 +25,8 @@ class GPSNode:
         self._origin_north = 0.0
         self.initial_yaw = None
         self.rotate_by_initial_yaw = rospy.get_param('~rotate_by_initial_yaw', False)
+        # GPS 공분산 (10.0m^2으로 키워 EKF가 NDT 포즈를 메인으로 추종하고 GPS 노이즈를 부드럽게 무시하도록 유도)
+        self.gps_cov_xy = rospy.get_param('~gps_cov_xy', 0.01)
 
         # 2. MGeo와 동일한 global_info.json에서 map 원점을 로드한다.
         #    MGeo JSON의 point는 local_origin_in_global을 뺀 UTM 좌표이므로
@@ -152,8 +154,8 @@ class GPSNode:
         pose_stamped.pose.pose.orientation.w = 1.0
 
         cov = [0.0] * 36
-        cov[0]  = msg.position_covariance[0]    # X
-        cov[7]  = msg.position_covariance[4]    # Y
+        cov[0]  = self.gps_cov_xy  # X (GPS 위치 신뢰도를 낮추고 EKF/NDT 비중 확대)
+        cov[7]  = self.gps_cov_xy  # Y
         cov[14] = 999.0  # Z (미사용)
         cov[21] = 999.0  # Roll (미사용)
         cov[28] = 999.0  # Pitch (미사용)
@@ -172,8 +174,8 @@ class GPSNode:
         gps_odom.pose.pose.orientation.w = 1.0
 
         cov_odom = [0.0] * 36
-        cov_odom[0]  = msg.position_covariance[0]    # X
-        cov_odom[7]  = msg.position_covariance[4]    # Y
+        cov_odom[0]  = self.gps_cov_xy  # X
+        cov_odom[7]  = self.gps_cov_xy  # Y
         cov_odom[14] = 999.0  # Z (무시)
         cov_odom[21] = 999.0  # Roll (무시)
         cov_odom[28] = 999.0  # Pitch (무시)

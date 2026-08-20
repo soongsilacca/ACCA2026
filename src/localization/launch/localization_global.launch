@@ -46,7 +46,7 @@
 
 
   <!-- 8. OMP NDT Global Localization -->
-  <include file="$(find localization)/launch/ndt_localization.launch" />
+  <!-- <include file="$(find localization)/launch/ndt_localization.launch" /> -->
 
   <!-- 9. FAST_LIO SLAM / Mapping -->
   <!-- <include file="$(find fast_lio)/launch/mapping_hdl32.launch">

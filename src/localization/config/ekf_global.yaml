@@ -26,26 +26,17 @@ pose0_config: [true,  true,  false,
 pose0_differential: false
 pose0_relative: false
 
-# 2. Wheel Odometry — 속도 성분(vx, vyaw)만 Global EKF에 fusion
-#
-#    목적 : GPS 블랙아웃 중에도 map→odom TF 를 dead-reckoning으로 유지.
-#
-#    x, y(위치)는 비활성화:
-#      /wheel_odometry 의 pose.x/y 는 odom 프레임 기준 누적 거리이므로
-#      map 프레임 절대 위치로 잘못 해석되지 않도록 반드시 false.
-#      위치 보정은 GPS가 있을 때 pose0(/gps_pose)가 담당한다.
-#
-#    vx, vyaw(속도)만 활성화:
-#      속도는 프레임 독립적(body frame)이므로 Global EKF 에 직접 사용 가능.
-#      GPS 없이도 속도 적분으로 map→odom TF 를 계속 갱신한다.
+# 2. Wheel odometry is fused only in the local EKF.
+#    Keeping it out of the global EKF avoids odom->base_link TF lookups inside
+#    the map filter and removes startup timing/update-rate warnings.
 
 odom0: /wheel_odometry
-odom0_config: [true,  true,  false,
+odom0_config: [false,  false,  false,
+               false, false, false,
+               true,  false, false,
                false, false, true,
-               false, false, false,
-               false, false, false,
                false, false, false]
-odom0_differential: true
+odom0_differential: false
 odom0_relative: false
 
 # 2. IMU yaw

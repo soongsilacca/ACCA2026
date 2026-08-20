@@ -14,7 +14,7 @@ IP       = '127.0.0.1'
 PORT     = 9090
 TOPIC    = '/gps'
 FRAME_ID = 'gps'
-UERE_SIGMA = 10.0
+UERE_SIGMA = 0.01
 
 
 def quality_to_nav_status(quality):

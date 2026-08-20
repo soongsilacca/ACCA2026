@@ -15,9 +15,9 @@ PORT     = 1112
 TOPIC    = '/imu'
 FRAME_ID = 'imu'
 
-_COV_ORI  = [0.1, 0, 0,  0, 0.1, 0,  0, 0, 0.1]  # orientation (roll, pitch, yaw)
-_COV_GYRO = [0.1, 0, 0,  0, 0.1, 0,  0, 0, 0.1]  # angular velocity
-_COV_ACCL = [0.5, 0, 0,  0, 0.5, 0,  0, 0, 0.5]  # linear acceleration
+_COV_ORI  = [0.01, 0, 0,  0, 0.01, 0,  0, 0, 0.01]  # orientation (roll, pitch, yaw)
+_COV_GYRO = [0.01, 0, 0,  0, 0.01, 0,  0, 0, 0.01]  # angular velocity
+_COV_ACCL = [0.1,  0, 0,  0, 0.1,  0,  0, 0, 0.1 ]  # linear acceleration
 
 
 def _safe(val, default=0.0):
