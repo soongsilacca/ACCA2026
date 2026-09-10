@@ -1,0 +1,3 @@
+version: 1
+global_path_csv: /home/acca/acca_ws/global_path/global_path.csv
+rules: []

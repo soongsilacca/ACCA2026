@@ -1,0 +1,43 @@
+publish_hz: 20.0
+planning_horizon_m: 120.0
+path_spacing_m: 0.5
+proposal_offsets_m: [-3.0, -1.5, 0.0, 1.5, 3.0]
+proposal_speed_factors: [0.0, 0.35, 0.65, 1.0]
+input_timeout_sec: 1.0
+# MORAI ObjectStatusList is normally published in world/map coordinates.
+# Set to base_link only when the selected Object_topic bridge publishes ego-relative values.
+object_frame: map
+# false: MGeo driving continues if MORAI's optional Object_topic is absent.
+# true: missing/stale ground truth applies a hard safe stop.
+require_objects: true
+min_cruise_speed_mps: 2.0
+maximum_speed_mps: 27.78
+lane_change_length_m: 8.0
+signal_stop_buffer_m: 20.0
+signal_full_stop_lead_m: 5.0
+signal_slowdown_distance_m: 45.0
+signal_path_tolerance_m: 6.0
+traffic_state_timeout_sec: 1.5
+ego_length_m: 4.8
+ego_width_m: 1.9
+safety_margin_m: 0.4
+prediction_horizon_sec: 5.0
+emergency_ttc_sec: 2.0
+stop_distance_m: 4.0
+follow_distance_m: 18.0
+lead_vehicle_distance_m: 100.0
+interaction_clearance_m: 1.5
+avoid_distance_m: 20.0
+pedestrian_caution_clearance_m: 3.0
+pedestrian_caution_time_sec: 3.5
+pedestrian_width_padding_m: 1.2
+npc_overtake_distance_m: 25.0
+npc_overtake_max_speed_mps: 5.0
+max_lateral_offset_m: 3.0
+weights:
+  collision: 1000000.0
+  clearance: 80.0
+  route: 8.0
+  lateral: 3.0
+  progress: 2.0
+  comfort: 4.0

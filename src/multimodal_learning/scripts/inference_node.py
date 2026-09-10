@@ -14,8 +14,20 @@ from geometry_msgs.msg import Point, PoseStamped
 from morai_msgs.msg import EgoVehicleStatus
 from nav_msgs.msg import Odometry, Path
 from sensor_msgs.msg import CompressedImage, Image, Imu, NavSatFix, PointCloud2
-from std_msgs.msg import Float32, Float32MultiArray, String
+from std_msgs.msg import ColorRGBA, Float32, Float32MultiArray, String
 from visualization_msgs.msg import Marker, MarkerArray
+
+# Catkin imports this package before InferenceNode is constructed, so the
+# bundled model lineage must be visible before any multimodal_learning import.
+_PACKAGE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_MODEL_ARTIFACT_DIR = os.path.join(_PACKAGE_DIR, "model_artifacts")
+for _source_dir in (
+    _MODEL_ARTIFACT_DIR,
+    "/home/acca",
+    "/home/acca/v17_ssd_archive",
+):
+    if _source_dir not in sys.path:
+        sys.path.insert(0, _source_dir)
 
 from multimodal_learning.bag_tokens import route_tokens_from_msg
 from multimodal_learning.io_utils import load_yaml, package_config
@@ -37,20 +49,15 @@ class InferenceNode:
         )
         if model_source_dir not in sys.path:
             sys.path.insert(0, model_source_dir)
-        artifact_dir = os.path.abspath(os.path.join(
-            os.path.dirname(__file__), "..", "model_artifacts"
-        ))
-        if artifact_dir not in sys.path:
-            sys.path.insert(0, artifact_dir)
         from multimodal_planner_v9.data import (
             ACTION_AVOID,
             ACTION_DRIVE,
             ACTION_NAMES,
             ACTION_STOP,
         )
-        from multimodal_planner_v9.model import (
+        from multimodal_learning.model import (
             ModelConfig,
-            SpatialResidualSpeedPlannerV9,
+            GoalSpatialCandidatePlannerV17,
         )
         from multimodal_planner_v8.velocity_planner import (
             build_mpc_path_from_candidate,
@@ -63,11 +70,20 @@ class InferenceNode:
             map_location="cpu",
             weights_only=True,
         )
+        expected_architecture = (
+            "multimodal_planner_v17_fixed_spatial_30m_candidates"
+        )
+        checkpoint_architecture = checkpoint.get("architecture")
+        if checkpoint_architecture != expected_architecture:
+            raise ValueError(
+                "V17 inference requires checkpoint architecture "
+                f"{expected_architecture!r}, got {checkpoint_architecture!r}"
+            )
         use_cuda = torch.cuda.is_available() and rospy.get_param("~use_cuda", True)
         self.device = torch.device("cuda" if use_cuda else "cpu")
         model_config = dict(checkpoint["model_config"])
         model_config["pretrained_camera"] = False
-        self.model = SpatialResidualSpeedPlannerV9(
+        self.model = GoalSpatialCandidatePlannerV17(
             ModelConfig(**model_config)
         ).to(self.device)
         self.model.load_state_dict(checkpoint["model_state"], strict=True)
@@ -91,8 +107,18 @@ class InferenceNode:
         )
         if not 0.0 <= self.immediate_stop_probability <= 1.0:
             raise ValueError("immediate_stop_probability must be in [0,1]")
+        self.stop_release_probability = float(
+            rospy.get_param("~stop_release_probability", 0.7)
+        )
+        if not 0.0 <= self.stop_release_probability <= 1.0:
+            raise ValueError("stop_release_probability must be in [0,1]")
+        if self.stop_release_probability >= self.immediate_stop_probability:
+            raise ValueError(
+                "stop_release_probability must be lower than "
+                "immediate_stop_probability to prevent STOP/DRIVE chatter"
+            )
         self.immediate_avoid_probability = float(
-            rospy.get_param("~immediate_avoid_probability", 0.3)
+            rospy.get_param("~immediate_avoid_probability", 0.1)
         )
         if not 0.0 <= self.immediate_avoid_probability <= 1.0:
             raise ValueError("immediate_avoid_probability must be in [0,1]")
@@ -121,6 +147,16 @@ class InferenceNode:
         if self.path_spacing <= 0.0:
             raise ValueError("path_spacing must be positive")
         self.path_length = float(rospy.get_param("~path_length", 80.0))
+        self.path_surface_width = float(
+            rospy.get_param("~path_surface_width", 2.8)
+        )
+        self.path_speed_color_max_kph = float(
+            rospy.get_param("~path_speed_color_max_kph", 50.0)
+        )
+        if self.path_surface_width <= 0.0:
+            raise ValueError("path_surface_width must be positive")
+        if self.path_speed_color_max_kph <= 0.0:
+            raise ValueError("path_speed_color_max_kph must be positive")
         self.mpc_route_start_index = int(
             rospy.get_param("~mpc_route_start_index", 2)
         )
@@ -243,26 +279,36 @@ class InferenceNode:
 
         subscribers = [
             message_filters.Subscriber(
-                self.topics["camera_front_topic"], camera_type(self.topics["camera_front_topic"])
+                self.topics["camera_front_topic"],
+                camera_type(self.topics["camera_front_topic"]),
+                queue_size=1,
             ),
             message_filters.Subscriber(
-                self.topics["camera_left_topic"], camera_type(self.topics["camera_left_topic"])
+                self.topics["camera_left_topic"],
+                camera_type(self.topics["camera_left_topic"]),
+                queue_size=1,
             ),
             message_filters.Subscriber(
-                self.topics["camera_right_topic"], camera_type(self.topics["camera_right_topic"])
+                self.topics["camera_right_topic"],
+                camera_type(self.topics["camera_right_topic"]),
+                queue_size=1,
             ),
-            message_filters.Subscriber(self.topics["odom_topic"], Odometry),
-            message_filters.Subscriber(self.topics["imu_topic"], Imu),
+            message_filters.Subscriber(
+                self.topics["odom_topic"], Odometry, queue_size=1
+            ),
+            message_filters.Subscriber(
+                self.topics["imu_topic"], Imu, queue_size=1
+            ),
         ]
         self.sync = message_filters.ApproximateTimeSynchronizer(
             subscribers,
-            self.topics["queue_size"],
+            min(int(self.topics["queue_size"]), 5),
             float(rospy.get_param("~sync_slop", 0.25)),
         )
         self.sync.registerCallback(self.dynamic_callback)
         self.publish_timer = rospy.Timer(rospy.Duration(1.0 / max(publish_hz, 1.0)), self.publish_prediction)
         rospy.loginfo(
-            "Planner V9 %s epoch %d loaded on %s: %d-frame history, "
+            "Planner V17 %s epoch %d loaded on %s: %d-frame history, "
             "%.1fm path at %.2fm spacing, local route start index %d, "
             "lateral residual deadband %.2fm, action queue %d/%d, "
             "AVOID immediate >= %.2f with %.1fs minimum hold, STOP %s, "
@@ -297,7 +343,7 @@ class InferenceNode:
     def mgeo_target_speed_callback(self, msg):
         with self.mgeo_speed_lock:
             self.latest_mgeo_target_speed = max(float(msg.data), 0.0)
-        rospy.loginfo_once("Planner V9 MGeo target speed input ready")
+        rospy.loginfo_once("Planner V17 MGeo target speed input ready")
 
     def lidar_callback(self, msg):
         with self.lidar_lock:
@@ -311,12 +357,12 @@ class InferenceNode:
                 cfg.get("local_route_frame", "base_link"), False,
             )
         except (ValueError, TypeError) as error:
-            rospy.logwarn_throttle(2.0, "Invalid V9 route: %s", error)
+            rospy.logwarn_throttle(2.0, "Invalid V17 route: %s", error)
             return
         with self.static_lock:
             self.route_input, self.route_msg = value, msg
             self.static_revision += 1
-        rospy.loginfo_once("Planner V9 local route input ready")
+        rospy.loginfo_once("Planner V17 local route input ready")
 
     def tensor(self, value):
         return torch.from_numpy(value).unsqueeze(0).to(self.device)
@@ -392,9 +438,42 @@ class InferenceNode:
         return np.concatenate((vehicle, imu_value, health))
 
     @staticmethod
+    def route_target(route_xy, lookahead_m):
+        return InferenceNode.route_points_at_distances(
+            route_xy, np.asarray([lookahead_m], dtype=np.float32)
+        )[0]
+
+    @staticmethod
+    def route_points_at_distances(route_xy, distances_m):
+        """Interpolate base-link route points at forward arc-length stations."""
+        route_xy = np.asarray(route_xy, dtype=np.float32)
+        distances = np.asarray(distances_m, dtype=np.float32).reshape(-1)
+        if (
+            route_xy.ndim != 2
+            or route_xy.shape[1] != 2
+            or len(route_xy) < 2
+            or not np.isfinite(route_xy).all()
+            or not np.isfinite(distances).all()
+            or (distances < 0.0).any()
+        ):
+            raise ValueError("route and spatial stations must be finite")
+        closest = int(np.square(route_xy).sum(axis=1).argmin())
+        forward = route_xy[closest:]
+        if len(forward) < 2:
+            return np.repeat(route_xy[-1:, :], len(distances), axis=0)
+        segment = np.linalg.norm(np.diff(forward, axis=0), axis=1)
+        cumulative = np.concatenate((
+            np.zeros(1, dtype=np.float32), np.cumsum(segment)
+        ))
+        return np.column_stack((
+            np.interp(distances, cumulative, forward[:, 0]),
+            np.interp(distances, cumulative, forward[:, 1]),
+        )).astype(np.float32)
+
+    @staticmethod
     def route_xy_in_base_link(route, odom):
         if route is None or len(route.poses) < 2:
-            raise ValueError("V9 requires a non-empty local route")
+            raise ValueError("V17 requires a non-empty local route")
         points = np.asarray([
             [pose.pose.position.x, pose.pose.position.y]
             for pose in route.poses
@@ -430,20 +509,29 @@ class InferenceNode:
     def select_runtime_action(self, probabilities):
         probabilities = np.asarray(probabilities, dtype=np.float32)
         if probabilities.shape != (3,) or not np.isfinite(probabilities).all():
-            raise ValueError("V9 action probabilities must be finite [3]")
+            raise ValueError("V17 action probabilities must be finite [3]")
 
         now = rospy.Time.now()
+
         if (
-            not self.enable_stop_action
-            and self.runtime_action == self.action_avoid
+            self.enable_stop_action
+            and self.runtime_action == self.action_stop
+        ):
+            if probabilities[self.action_stop] < self.stop_release_probability:
+                self.runtime_action = self.action_drive
+                self.action_history.clear()
+                self.action_history.append(self.action_drive)
+            return self.runtime_action
+
+        if (
+            self.runtime_action == self.action_avoid
             and now < self.avoid_hold_until
         ):
             # Do not collect DRIVE release votes during the minimum hold.
             return self.runtime_action
 
         if (
-            not self.enable_stop_action
-            and probabilities[self.action_avoid]
+            probabilities[self.action_avoid]
             >= self.immediate_avoid_probability
         ):
             # Enter AVOID on the current inference result. Resetting and
@@ -458,7 +546,19 @@ class InferenceNode:
             self.capture_avoid_path = True
             return self.runtime_action
 
-        if not self.enable_stop_action and self.runtime_action == self.action_avoid:
+        # Once AVOID has had the opportunity to claim an obstacle frame,
+        # apply the deliberately sensitive STOP threshold.
+        if (
+            self.enable_stop_action
+            and probabilities[self.action_stop]
+            >= self.immediate_stop_probability
+        ):
+            self.runtime_action = self.action_stop
+            self.action_history.clear()
+            self.action_history.append(self.action_stop)
+            return self.runtime_action
+
+        if self.runtime_action == self.action_avoid:
             # AVOID release alone is debounced: require DRIVE to win the
             # configured N/M queue (3/5 by default).
             predicted = (
@@ -486,16 +586,6 @@ class InferenceNode:
             return self.runtime_action
         self.action_history.append(predicted)
 
-        # A confident STOP is applied immediately. Other transitions require
-        # a short majority queue so a single camera frame cannot move the path.
-        if (
-            self.enable_stop_action
-            and probabilities[self.action_stop]
-            >= self.immediate_stop_probability
-        ):
-            self.runtime_action = self.action_stop
-            return self.runtime_action
-
         counts = np.bincount(
             np.asarray(self.action_history, dtype=np.int64),
             minlength=3,
@@ -512,14 +602,14 @@ class InferenceNode:
         candidate_speed_mps,
         external_speed_mps,
     ):
-        """Blend V9 near-field delta-v with MGeo and curvature limits."""
+        """Blend V17 absolute spatial speeds with MGeo and curve limits."""
         station = np.asarray(path["station_m"], dtype=np.float64)
         anchors = np.asarray(anchors_m, dtype=np.float64).reshape(-1)
         candidate = np.asarray(
             candidate_speed_mps, dtype=np.float64
         ).reshape(-1)
         if candidate.shape != anchors.shape:
-            raise ValueError("V9 speed anchors and values must match")
+            raise ValueError("V17 speed anchors and values must match")
 
         base_speed = max(float(external_speed_mps), 0.0)
         learned = np.interp(
@@ -579,7 +669,7 @@ class InferenceNode:
             candidate_speed_mps, dtype=np.float64
         ).reshape(-1)
         if candidate.shape != progress.shape or len(progress) < 2:
-            raise ValueError("V9 delta-v samples and path progress must match")
+            raise ValueError("V17 delta-v samples and path progress must match")
 
         base_speed = max(float(external_speed_mps), 0.0)
         if base_speed <= 0.0:
@@ -606,7 +696,7 @@ class InferenceNode:
         return np.clip(learned, minimum_speed, base_speed).astype(np.float32)
 
     def dynamic_callback(self, front_msg, left_msg, right_msg, odom_msg, imu_msg):
-        rospy.loginfo_once("Planner V9 synchronized sensor callback active")
+        rospy.loginfo_once("Planner V17 synchronized sensor callback active")
         stamp = odom_msg.header.stamp.to_sec() or rospy.Time.now().to_sec()
         if stamp - self.last_encoded_stamp < self.sample_period - 1e-4:
             return
@@ -622,7 +712,7 @@ class InferenceNode:
         if lidar_msg is None:
             rospy.logerr_throttle(
                 2.0,
-                "Planner V9 waiting for required LiDAR topic %s; "
+                "Planner V17 waiting for required LiDAR topic %s; "
                 "prediction is disabled (zero-BEV fallback removed)",
                 self.topics["lidar_topic"],
             )
@@ -631,7 +721,7 @@ class InferenceNode:
         if lidar_stamp <= 0.0 or abs(stamp - lidar_stamp) > self.lidar_sync_tolerance:
             rospy.logerr_throttle(
                 2.0,
-                "Planner V9 LiDAR is stale/unsynchronized: age %.3fs "
+                "Planner V17 LiDAR is stale/unsynchronized: age %.3fs "
                 "(limit %.3fs); prediction is disabled",
                 abs(stamp - lidar_stamp),
                 self.lidar_sync_tolerance,
@@ -653,7 +743,7 @@ class InferenceNode:
             )
             route_xy = self.route_xy_in_base_link(route_msg, odom_msg)
         except (ValueError, TypeError) as error:
-            rospy.logwarn_throttle(2.0, "Invalid dynamic V9 input: %s", error)
+            rospy.logwarn_throttle(2.0, "Invalid dynamic V17 input: %s", error)
             return
 
         with torch.no_grad(), torch.amp.autocast(
@@ -690,33 +780,25 @@ class InferenceNode:
             if mgeo_target_speed is None:
                 rospy.logwarn_throttle(
                     2.0,
-                    "Planner V9 waiting for /mgeo_target_velocity; "
+                    "Planner V17 waiting for /mgeo_target_velocity; "
                     "safe target speed 0 m/s",
                 )
                 mgeo_target_speed = 0.0
 
-            rospy.loginfo_once("Planner V9 history/route inputs ready")
+            rospy.loginfo_once("Planner V17 history/route inputs ready")
             route = static_cache
-            # The external speed profile is not a learned context input. V9
-            # only uses it to scale its non-positive AVOID delta-v output.
-            model_base_speed = max(float(mgeo_target_speed), 0.1)
-            base_speed_profile = self.tensor(
-                np.full(64, model_base_speed, dtype=np.float32)
-            ).float()
+            # route tokens are normalized by 50 m. Convert them back to metres
+            # for geometric interpolation, then apply V17's goal normalization.
+            route_token_xy_m = route[0, :, :2].float().cpu().numpy() * 50.0
+            goal_point_m = self.route_target(route_token_xy_m, 30.0)
+            goal_point = goal_point_m / np.asarray([30.0, 15.0], np.float32)
+            goal_tensor = self.tensor(goal_point.astype(np.float32)).float()
+
             output = self.model(
-                *history,
-                base_speed_profile,
-                route,
+                history[0], history[1], history[2], history[3],
+                goal_tensor,
             )
-            rospy.loginfo_once("Planner V9 first forward completed")
-            base_candidate_path = (
-                output["base_spatial_path_xy_m"][0]
-                .float().cpu().numpy()
-            )
-            candidate_path = (
-                output["candidate_spatial_path_xy_m"][0]
-                .float().cpu().numpy()
-            )
+            rospy.loginfo_once("Planner V17 first forward completed")
             action_probabilities = (
                 output["action_probabilities"][0]
                 .float().cpu().numpy()
@@ -724,24 +806,52 @@ class InferenceNode:
             runtime_action = self.select_runtime_action(
                 action_probabilities
             )
+
+            selected_path_key = (
+                "avoid_path_xy_m"
+                if runtime_action == self.action_avoid
+                else "drive_path_xy_m"
+            )
+            candidate_path = (
+                output[selected_path_key][0].float().cpu().numpy()
+            )
+            # The legacy path builder consumes (route baseline, selected
+            # absolute candidate). These values are applied only for AVOID.
+            base_candidate_path = self.route_points_at_distances(
+                route_xy, np.asarray([3.0, 6.0, 10.0, 15.0, 22.0, 30.0])
+            )
+            # Runtime authority is deliberately split: DRIVE follows the
+            # untouched MGeo route, AVOID applies only the learned avoidance
+            # candidate, and STOP keeps the route but forces zero speed.
+            use_candidate_path = runtime_action == self.action_avoid
+
             candidate_speed = (
-                output["candidate_spatial_speed_mps"][0]
+                output["target_speed_mps"][0]
                 .float().cpu().numpy()
             )
-            use_candidate_path = (
-                self.delta_only_mode
-                or runtime_action == self.action_avoid
-            )
+            builder_base_path = base_candidate_path
+            builder_candidate_path = candidate_path
+            builder_candidate_speed = candidate_speed
+            if use_candidate_path:
+                # V17's first learned station is 3 m ahead. Prepending the
+                # ego origin makes the offset ramp begin now instead of making
+                # MPC wait until the vehicle reaches that first station.
+                origin = np.zeros((1, 2), dtype=np.float32)
+                builder_base_path = np.vstack((origin, base_candidate_path))
+                builder_candidate_path = np.vstack((origin, candidate_path))
+                builder_candidate_speed = np.concatenate((
+                    candidate_speed[:1], candidate_speed
+                ))
             try:
                 planned_path = self.build_mpc_path(
                     route_xy,
                     (
-                        base_candidate_path
+                        builder_base_path
                         if use_candidate_path
                         else None
                     ),
                     (
-                        candidate_path
+                        builder_candidate_path
                         if use_candidate_path
                         else None
                     ),
@@ -753,22 +863,13 @@ class InferenceNode:
             except ValueError as error:
                 rospy.logerr_throttle(
                     2.0,
-                    "Planner V9 path building failed: %s",
+                    "Planner V17 path building failed: %s",
                     error,
                 )
                 return
             positions = planned_path["xy_m"]
             yaws = planned_path["yaw_rad"]
-            if self.delta_only_mode:
-                keep_indices = planned_path["candidate_keep_indices"]
-                speeds = self.plan_delta_only_speed_profile(
-                    planned_path,
-                    planned_path["candidate_station_m"],
-                    candidate_speed[keep_indices],
-                    float(mgeo_target_speed),
-                )
-                curve_speeds = speeds
-            elif runtime_action == self.action_stop:
+            if runtime_action == self.action_stop:
                 speeds = np.zeros(len(positions), dtype=np.float32)
                 curve_speeds = speeds
             elif runtime_action == self.action_avoid:
@@ -776,20 +877,14 @@ class InferenceNode:
                 speeds, curve_speeds = self.plan_avoid_speed_profile(
                     planned_path,
                     planned_path["candidate_station_m"],
-                    candidate_speed[keep_indices],
+                    builder_candidate_speed[keep_indices],
                     float(mgeo_target_speed),
                 )
             else:
-                speeds = self.plan_curvature_speed_profile(
-                    planned_path,
-                    float(mgeo_target_speed),
-                    max_lateral_acceleration_mps2=(
-                        self.max_lateral_acceleration_mps2
-                    ),
-                    max_deceleration_mps2=(
-                        self.max_curve_deceleration_mps2
-                    ),
-                    curvature_smoothing_m=self.curvature_smoothing_m,
+                speeds = np.full(
+                    len(positions),
+                    max(float(mgeo_target_speed), 0.0),
+                    dtype=np.float32,
                 )
                 curve_speeds = speeds
             target_speed = float(speeds[0])
@@ -856,7 +951,7 @@ class InferenceNode:
                 else rospy.Time.now()
             )
 
-            if not self.delta_only_mode and runtime_action == self.action_avoid:
+            if runtime_action == self.action_avoid:
                 if self.capture_avoid_path or self.latched_avoid_path is None:
                     # Latch the completed Local Route + delta-d path in map
                     # coordinates. It must stay fixed in the world instead of
@@ -910,11 +1005,7 @@ class InferenceNode:
                 "mgeo_target_speed": float(mgeo_target_speed),
                 "curve_target_speed": curve_target_speed,
                 "runtime_action": runtime_action,
-                "planning_mode": (
-                    "DELTA_ONLY"
-                    if self.delta_only_mode
-                    else self.action_names[runtime_action]
-                ),
+                "planning_mode": self.action_names[runtime_action],
                 "prediction_stamp": prediction_stamp,
             }
 
@@ -947,10 +1038,59 @@ class InferenceNode:
             red, green, blue = (0.05, 0.75, 1.00)
         marker_array = MarkerArray()
 
+        # Autoware-style continuous drivable corridor. Each strip vertex gets
+        # a speed colour: stopped/slow purple, fast red.
+        surface = Marker()
+        surface.header.stamp = stamp
+        surface.header.frame_id = "map"
+        surface.ns = "v17_predicted_path"
+        surface.id = 20
+        surface.type = Marker.TRIANGLE_LIST
+        surface.action = Marker.ADD
+        surface.pose.orientation.w = 1.0
+        surface.lifetime = rospy.Duration(0.25)
+
+        def speed_color(speed_mps, alpha=0.72):
+            ratio = min(
+                max(float(speed_mps) * 3.6 / self.path_speed_color_max_kph, 0.0),
+                1.0,
+            )
+            # Purple (0.55, 0.05, 1.0) -> magenta -> red (1.0, 0.03, 0.02).
+            return ColorRGBA(
+                0.55 + 0.45 * ratio,
+                0.05 - 0.02 * ratio,
+                1.00 - 0.98 * ratio,
+                alpha,
+            )
+
+        if len(trajectory) >= 2:
+            half_width = 0.5 * self.path_surface_width
+            strip_edges = []
+            for index, row in enumerate(trajectory):
+                if index == 0:
+                    dx = float(trajectory[1][0] - row[0])
+                    dy = float(trajectory[1][1] - row[1])
+                elif index == len(trajectory) - 1:
+                    dx = float(row[0] - trajectory[index - 1][0])
+                    dy = float(row[1] - trajectory[index - 1][1])
+                else:
+                    dx = float(trajectory[index + 1][0] - trajectory[index - 1][0])
+                    dy = float(trajectory[index + 1][1] - trajectory[index - 1][1])
+                norm = max(math.hypot(dx, dy), 1.0e-6)
+                nx, ny = -dy / norm * half_width, dx / norm * half_width
+                left_edge = Point(float(row[0]) + nx, float(row[1]) + ny, 0.12)
+                right_edge = Point(float(row[0]) - nx, float(row[1]) - ny, 0.12)
+                strip_edges.append((left_edge, right_edge, speed_color(row[3])))
+            for index in range(len(strip_edges) - 1):
+                left0, right0, color0 = strip_edges[index]
+                left1, right1, color1 = strip_edges[index + 1]
+                surface.points.extend((left0, right0, left1, right0, right1, left1))
+                surface.colors.extend((color0, color0, color1, color0, color1, color1))
+
         line = Marker()
         line.header.stamp = stamp
         line.header.frame_id = "map"
-        line.ns = "v9_predicted_path"
+        line.ns = "v17_predicted_path"
         line.id = 0
         line.type = Marker.LINE_STRIP
         line.action = Marker.ADD
@@ -962,6 +1102,22 @@ class InferenceNode:
         line.color.a = 0.95
         line.lifetime = rospy.Duration(0.25)
 
+        glow = Marker()
+        glow.header = line.header
+        glow.ns = line.ns
+        glow.id = 5
+        glow.type = Marker.LINE_STRIP
+        glow.action = Marker.ADD
+        glow.pose.orientation.w = 1.0
+        glow.scale.x = 0.48 + 0.08 * (
+            1.0 + math.sin(rospy.Time.now().to_sec() * 7.0)
+        )
+        glow.color.r = red
+        glow.color.g = green
+        glow.color.b = blue
+        glow.color.a = 0.18
+        glow.lifetime = line.lifetime
+
         points = Marker()
         points.header = line.header
         points.ns = line.ns
@@ -969,22 +1125,24 @@ class InferenceNode:
         points.type = Marker.SPHERE_LIST
         points.action = Marker.ADD
         points.pose.orientation.w = 1.0
-        points.scale.x = 0.11
-        points.scale.y = 0.11
-        points.scale.z = 0.11
+        points.scale.x = 0.20
+        points.scale.y = 0.20
+        points.scale.z = 0.20
         points.color.r = red
         points.color.g = green
         points.color.b = blue
         points.color.a = 0.55
         points.lifetime = line.lifetime
 
-        for row in trajectory:
+        for row_index, row in enumerate(trajectory):
             point = Point()
             point.x = float(row[0])
             point.y = float(row[1])
             point.z = 0.15
             line.points.append(point)
-            points.points.append(point)
+            glow.points.append(point)
+            if row_index % 10 == 0:
+                points.points.append(point)
 
         base_line = Marker()
         base_line.header = line.header
@@ -1032,6 +1190,25 @@ class InferenceNode:
             candidate_point.z = 0.35
             delta_lines.points.extend((base_point, candidate_point))
 
+        stations = Marker()
+        stations.header = line.header
+        stations.ns = line.ns
+        stations.id = 6
+        stations.type = Marker.SPHERE_LIST
+        stations.action = Marker.ADD
+        stations.pose.orientation.w = 1.0
+        stations.scale.x = 0.48
+        stations.scale.y = 0.48
+        stations.scale.z = 0.48
+        stations.color = ColorRGBA(red, green, blue, 1.0)
+        stations.lifetime = line.lifetime
+        for row in delta_candidate_map:
+            station = Point()
+            station.x = float(row[0])
+            station.y = float(row[1])
+            station.z = 0.42
+            stations.points.append(station)
+
         action_label = Marker()
         action_label.header = line.header
         action_label.ns = line.ns
@@ -1061,13 +1238,58 @@ class InferenceNode:
         )
         action_label.lifetime = line.lifetime
 
+        probability_markers = []
+        probability_colors = (
+            (0.10, 0.95, 0.20),
+            (0.95, 0.08, 0.08),
+            (1.00, 0.55, 0.05),
+        )
+        if len(trajectory):
+            anchor_x = float(trajectory[0][0])
+            anchor_y = float(trajectory[0][1]) - 2.2
+            for index, (score, color) in enumerate(zip(
+                action_scores, probability_colors
+            )):
+                bar = Marker()
+                bar.header = line.header
+                bar.ns = line.ns
+                bar.id = 10 + index
+                bar.type = Marker.CUBE
+                bar.action = Marker.ADD
+                bar.pose.orientation.w = 1.0
+                bar.pose.position.x = anchor_x + (index - 1) * 0.65
+                bar.pose.position.y = anchor_y
+                height = max(float(score) * 2.0, 0.04)
+                bar.pose.position.z = 0.10 + height * 0.5
+                bar.scale.x = 0.48
+                bar.scale.y = 0.48
+                bar.scale.z = height
+                bar.color = ColorRGBA(*color, 0.92)
+                bar.lifetime = line.lifetime
+                probability_markers.append(bar)
+
+            bar_label = Marker()
+            bar_label.header = line.header
+            bar_label.ns = line.ns
+            bar_label.id = 13
+            bar_label.type = Marker.TEXT_VIEW_FACING
+            bar_label.action = Marker.ADD
+            bar_label.pose.orientation.w = 1.0
+            bar_label.pose.position.x = anchor_x
+            bar_label.pose.position.y = anchor_y - 0.55
+            bar_label.pose.position.z = 0.55
+            bar_label.scale.z = 0.36
+            bar_label.color = ColorRGBA(0.75, 0.90, 1.0, 0.95)
+            bar_label.text = "DRIVE       STOP       AVOID"
+            bar_label.lifetime = line.lifetime
+            probability_markers.append(bar_label)
+
         marker_array.markers.extend((
-            base_line,
-            line,
-            points,
-            delta_lines,
-            action_label,
+            base_line, surface, glow, line, action_label
         ))
+        marker_array.markers.extend(probability_markers)
+        if runtime_action == self.action_avoid:
+            marker_array.markers.append(delta_lines)
         self.path_marker_publisher.publish(marker_array)
 
     def publish_prediction(self, _event):
@@ -1093,7 +1315,7 @@ class InferenceNode:
             planning_mode = str(self.latest_output["planning_mode"])
             update_time, prediction_stamp = self.latest_prediction_time, self.latest_prediction_stamp
         if (rospy.Time.now() - update_time).to_sec() > self.prediction_timeout:
-            rospy.logwarn_throttle(2.0, "Planner V9 prediction stale; publication paused")
+            rospy.logwarn_throttle(2.0, "Planner V17 prediction stale; publication paused")
             return
 
         action_name = planning_mode
@@ -1105,7 +1327,7 @@ class InferenceNode:
                 else self.last_announced_runtime_action
             )
             rospy.logwarn(
-                "Planner V9 runtime action changed: %s -> %s "
+                "Planner V17 runtime action changed: %s -> %s "
                 "(P_DRIVE=%.3f P_STOP=%.3f P_AVOID=%.3f)",
                 previous_name,
                 action_name,
@@ -1143,7 +1365,7 @@ class InferenceNode:
             self.kph_speed_publisher.publish(Float32(data=target_speed_kph))
             rospy.loginfo_throttle(
                 1.0,
-                "Planner V9 target speed: %.3f m/s (%.2f km/h, %s; "
+                "Planner V17 target speed: %.3f m/s (%.2f km/h, %s; "
                 "MGeo %.3f m/s, applied profile %.3f m/s; "
                 "P=%.3f/%.3f/%.3f)",
                 target_speed_mps,
@@ -1169,18 +1391,13 @@ class InferenceNode:
             planning_mode,
         )
         # Existing MPC contract is [STOP, proceed]. When STOP routing is
-        # disabled, publish an unconditional proceed score so the downstream
-        # brake latch cannot be engaged by the ignored raw STOP probability.
-        if self.enable_stop_action:
-            mpc_mode_scores = [
-                float(action_scores[self.action_stop]),
-                float(
-                    action_scores[self.action_drive]
-                    + action_scores[self.action_avoid]
-                ),
-            ]
-        else:
-            mpc_mode_scores = [0.0, 1.0]
+        # selected by the runtime threshold, publish a decisive score so the
+        # controller's higher raw-score threshold cannot delay braking.
+        mpc_mode_scores = (
+            [1.0, 0.0]
+            if runtime_action == self.action_stop
+            else [0.0, 1.0]
+        )
         self.mode_publisher.publish(
             Float32MultiArray(data=mpc_mode_scores)
         )

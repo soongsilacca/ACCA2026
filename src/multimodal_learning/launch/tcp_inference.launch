@@ -1,15 +1,85 @@
 <launch>
-  <arg name="artifact_zip" default="/home/acca/tcp_morai_finetune.zip" />
-  <arg name="checkpoint_path" default="/home/acca/latest.pt" />
+  <!-- Complete MORAI sensor/localization/route stack. -->
+  <arg name="launch_sensors" default="true" />
+  <arg name="use_sim_time" default="false" />
+  <arg name="global_path_csv"
+       default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+  <arg name="ego_status_port" default="9011" />
+  <arg name="device_ip" default="" />
+  <arg name="velodyne_port" default="2368" />
+  <arg name="velodyne_frame" default="velodyne" />
+  <arg name="velodyne_rpm" default="900.0" />
+  <arg name="velodyne_min_range" default="0.4" />
+  <arg name="velodyne_max_range" default="130.0" />
+  <arg name="velodyne_pcap" default="" />
+  <arg name="camera_jpeg_quality" default="80" />
+
+  <!-- Same controller/RViz surface as inference.launch. -->
+  <arg name="launch_controller" default="false" />
+  <!-- Use the full TCP Beta-policy output for accel/brake/steer. -->
+  <arg name="direct_control" default="true" />
+  <arg name="direct_steer_gain" default="1.8" />
+  <!-- Follow the full-TCP trajectory with the existing Stanley controller. -->
+  <arg name="controller_mode" default="stanley" />
+  <arg name="mpc_path_topic"
+       default="/local_route" />
+  <arg name="mpc_path_input_topic"
+       default="/multimodal_learning/control_path" />
+  <arg name="mpc_path_start_index" default="2" />
+  <arg name="mpc_target_velocity_topic" default="/target_velocity" />
+  <arg name="ai_path_timeout" default="1.5" />
+  <arg name="stop_full_brake_threshold" default="0.8" />
+  <arg name="stop_latch_threshold" default="0.5" />
+  <arg name="stop_release_drive_threshold" default="0.8" />
+  <arg name="stop_release_hold_sec" default="0.0" />
+  <arg name="mode_score_timeout" default="1.5" />
+  <arg name="max_lateral_acceleration_mps2" default="3.0" />
+  <arg name="stanley_curve_preview_m" default="10.0" />
+  <arg name="stanley_curve_min_speed_mps" default="1.0" />
+  <!-- More responsive tracking for TCP's short, sharp avoidance paths. -->
+  <arg name="stanley_heading_gain" default="1.0" />
+  <arg name="stanley_cross_track_gain" default="1.6" />
+  <arg name="stanley_softening_speed_mps" default="0.20" />
+  <arg name="stanley_max_steer_rate_radps" default="2.4" />
+  <arg name="rviz" default="true" />
+  <arg name="rviz_config"
+       default="$(find multimodal_learning)/config/inference.rviz" />
+
+  <arg name="artifact_zip"
+       default="$(find multimodal_learning)/model_artifacts/tcp_full/tcp_morai_finetune.zip" />
+  <arg name="checkpoint_path"
+       default="/media/acca/b4bc958b-d82f-4611-96bd-67d55146f5bf/home/libok/training_outputs/tcp_teacher_full_policy_v6_command_fixed_best_ep28/best.pt" />
   <arg name="camera_topic" default="/camera/front/image/compressed" />
   <arg name="use_cuda" default="true" />
-  <arg name="model_inference_period" default="0.3" />
+  <arg name="model_inference_period" default="0.1" />
   <arg name="planning_publish_hz" default="20.0" />
   <arg name="prediction_timeout" default="1.0" />
   <arg name="path_spacing" default="0.1" />
   <arg name="mgeo_target_velocity_topic" default="/mgeo_target_velocity" />
+  <!-- Full TCP trial: MPC follows TCP waypoints in DRIVE and AVOID. -->
+  <arg name="tcp_path_for_drive" default="true" />
   <arg name="tcp_stop_speed_ratio" default="0.3" />
   <arg name="tcp_stop_absolute_speed_mps" default="1.0" />
+  <arg name="stop_enter_probability" default="0.30" />
+  <arg name="stop_release_probability" default="0.20" />
+  <arg name="avoid_enter_probability" default="0.30" />
+
+  <group if="$(arg launch_sensors)">
+    <include file="$(find multimodal_learning)/launch/multimodal_sensors.launch">
+      <arg name="use_sim_time" value="$(arg use_sim_time)" />
+      <arg name="global_path_csv" value="$(arg global_path_csv)" />
+      <arg name="ego_status_port" value="$(arg ego_status_port)" />
+      <arg name="enable_ctrl_sender" value="true" />
+      <arg name="device_ip" value="$(arg device_ip)" />
+      <arg name="velodyne_port" value="$(arg velodyne_port)" />
+      <arg name="frame_id" value="$(arg velodyne_frame)" />
+      <arg name="rpm" value="$(arg velodyne_rpm)" />
+      <arg name="min_range" value="$(arg velodyne_min_range)" />
+      <arg name="max_range" value="$(arg velodyne_max_range)" />
+      <arg name="pcap" value="$(arg velodyne_pcap)" />
+      <arg name="camera_jpeg_quality" value="$(arg camera_jpeg_quality)" />
+    </include>
+  </group>
 
   <node pkg="multimodal_learning"
         type="tcp_inference_node.py"
@@ -19,15 +89,66 @@
     <param name="checkpoint_path" value="$(arg checkpoint_path)" />
     <param name="camera_topic" value="$(arg camera_topic)" />
     <param name="use_cuda" value="$(arg use_cuda)" />
+    <param name="direct_control" value="$(arg direct_control)" />
+    <param name="direct_steer_gain" value="$(arg direct_steer_gain)" />
     <param name="model_inference_period" value="$(arg model_inference_period)" />
     <param name="planning_publish_hz" value="$(arg planning_publish_hz)" />
     <param name="prediction_timeout" value="$(arg prediction_timeout)" />
     <param name="path_spacing" value="$(arg path_spacing)" />
     <param name="mgeo_target_velocity_topic"
            value="$(arg mgeo_target_velocity_topic)" />
+    <param name="tcp_path_for_drive" value="$(arg tcp_path_for_drive)" />
     <param name="tcp_stop_speed_ratio"
            value="$(arg tcp_stop_speed_ratio)" />
     <param name="tcp_stop_absolute_speed_mps"
            value="$(arg tcp_stop_absolute_speed_mps)" />
+    <param name="stop_enter_probability"
+           value="$(arg stop_enter_probability)" />
+    <param name="stop_release_probability"
+           value="$(arg stop_release_probability)" />
+    <param name="avoid_enter_probability"
+           value="$(arg avoid_enter_probability)" />
   </node>
+
+  <node if="$(arg rviz)" pkg="rviz" type="rviz"
+        name="multimodal_inference_rviz"
+        args="-d $(arg rviz_config)" output="screen" />
+
+  <group if="$(arg launch_controller)">
+    <include file="$(find control)/launch/control_mpc_with_weight.launch">
+      <arg name="controller_mode" value="$(arg controller_mode)" />
+      <arg name="path_topic" value="$(arg mpc_path_topic)" />
+      <arg name="path_input_topic" value="$(arg mpc_path_input_topic)" />
+      <arg name="path_start_index" value="$(arg mpc_path_start_index)" />
+      <arg name="ai_path_timeout" value="$(arg ai_path_timeout)" />
+      <arg name="target_velocity_topic"
+           value="$(arg mpc_target_velocity_topic)" />
+      <arg name="mode_score_topic"
+           value="/multimodal_learning/mode_scores" />
+      <arg name="stop_full_brake_threshold"
+           value="$(arg stop_full_brake_threshold)" />
+      <arg name="stop_latch_threshold"
+           value="$(arg stop_latch_threshold)" />
+      <arg name="stop_release_drive_threshold"
+           value="$(arg stop_release_drive_threshold)" />
+      <arg name="stop_release_hold_sec"
+           value="$(arg stop_release_hold_sec)" />
+      <arg name="mode_score_timeout" value="$(arg mode_score_timeout)" />
+      <arg name="stanley_max_lateral_acceleration_mps2"
+           value="$(arg max_lateral_acceleration_mps2)" />
+      <arg name="stanley_curve_preview_m"
+           value="$(arg stanley_curve_preview_m)" />
+      <arg name="stanley_curve_min_speed_mps"
+           value="$(arg stanley_curve_min_speed_mps)" />
+      <arg name="stanley_heading_gain"
+           value="$(arg stanley_heading_gain)" />
+      <arg name="stanley_cross_track_gain"
+           value="$(arg stanley_cross_track_gain)" />
+      <arg name="stanley_softening_speed_mps"
+           value="$(arg stanley_softening_speed_mps)" />
+      <arg name="stanley_max_steer_rate_radps"
+           value="$(arg stanley_max_steer_rate_radps)" />
+      <arg name="launch_stack" value="false" />
+    </include>
+  </group>
 </launch>

@@ -9,8 +9,8 @@ ROS node / standalone script to send ScenarioLoad commands to MORAI Simulator vi
 import sys
 from pathlib import Path
 
-# Add root directory to path for importing 'lib'
-sys.path.append(str(Path(__file__).resolve().parents[2]))
+# ``lib`` lives in ``morai_connect/lib``.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import rospy
 from std_msgs.msg import String, Empty
@@ -32,12 +32,18 @@ class MoraiScenarioLoadSender:
         self.scenario_file = rospy.get_param('~scenario_file', default_file)
         
         self.delete_all = rospy.get_param('~delete_all', False)
+        # Keep the MORAI Network Settings configured in the simulator.  Once
+        # the user sets the UDP ports, subsequent scenario reloads must not
+        # overwrite them with scenario-file connection data.
         self.network = rospy.get_param('~network', False)
         self.ego = rospy.get_param('~ego', True)
         self.npc = rospy.get_param('~npc', True)
         self.pedestrian = rospy.get_param('~pedestrian', True)
         self.object = rospy.get_param('~object', True)
-        self.pause = rospy.get_param('~pause', True)
+        # A training scenario must resume immediately after loading.  Setting
+        # this true leaves MORAI paused, so no GT/ObjectInfo arrives and the
+        # controller correctly remains in safe stop.
+        self.pause = rospy.get_param('~pause', False)
         
         self.load_on_start = rospy.get_param('~load_on_start', True)
 

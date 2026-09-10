@@ -1,0 +1,7 @@
+version: 2
+default_planner: mgeo
+preview:
+  start: null
+  goal: null
+  waypoints: []
+policies: []

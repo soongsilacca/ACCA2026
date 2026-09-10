@@ -164,6 +164,9 @@
 
     <group if="$(eval arg('planner_backend') == 'tcp')">
       <include file="$(find multimodal_learning)/launch/tcp_inference.launch">
+        <arg name="launch_sensors" value="false" />
+        <arg name="launch_controller" value="false" />
+        <arg name="rviz" value="false" />
         <arg name="artifact_zip" value="$(arg tcp_artifact_zip)" />
         <arg name="checkpoint_path" value="$(arg tcp_checkpoint_path)" />
         <arg name="use_cuda" value="$(arg use_cuda)" />

@@ -1,0 +1,8 @@
+<launch>
+  <arg name="config" default="$(find safety_monitor)/config/collision_estop.yaml" />
+
+  <node pkg="safety_monitor" type="collision_estop_node.py"
+        name="collision_estop" output="screen" respawn="true">
+    <rosparam file="$(arg config)" command="load" />
+  </node>
+</launch>

@@ -1,0 +1,62 @@
+<launch>
+  <arg name="launch_sensors" default="true" />
+  <arg name="launch_controller" default="true" />
+  <arg name="rviz" default="true" />
+  <arg name="use_sim_time" default="false" />
+  <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+  <arg name="ego_status_port" default="9011" />
+  <arg name="device_ip" default="" />
+  <arg name="velodyne_port" default="2368" />
+  <arg name="camera_jpeg_quality" default="80" />
+  <arg name="checkpoint_path" default="$(find multimodal_learning)/model_artifacts/simlingo_base_teacher_v1/best.pt" />
+  <arg name="camera_topic" default="/camera/front/image/compressed" />
+  <arg name="model_inference_period" default="0.3" />
+  <arg name="planning_publish_hz" default="20.0" />
+  <arg name="prediction_timeout" default="1.5" />
+  <arg name="stop_speed_mps" default="0.5" />
+  <arg name="enable_speed_stop" default="true" />
+  <arg name="rviz_config" default="$(find multimodal_learning)/config/inference.rviz" />
+
+  <group if="$(arg launch_sensors)">
+    <include file="$(find multimodal_learning)/launch/multimodal_sensors.launch">
+      <arg name="use_sim_time" value="$(arg use_sim_time)" />
+      <arg name="global_path_csv" value="$(arg global_path_csv)" />
+      <arg name="ego_status_port" value="$(arg ego_status_port)" />
+      <arg name="enable_ctrl_sender" value="true" />
+      <arg name="device_ip" value="$(arg device_ip)" />
+      <arg name="velodyne_port" value="$(arg velodyne_port)" />
+      <arg name="camera_jpeg_quality" value="$(arg camera_jpeg_quality)" />
+    </include>
+  </group>
+
+  <node pkg="multimodal_learning" type="simlingo_inference_node.py"
+        name="multimodal_inference" output="screen">
+    <param name="checkpoint_path" value="$(arg checkpoint_path)" />
+    <param name="camera_topic" value="$(arg camera_topic)" />
+    <param name="model_inference_period" value="$(arg model_inference_period)" />
+    <param name="planning_publish_hz" value="$(arg planning_publish_hz)" />
+    <param name="prediction_timeout" value="$(arg prediction_timeout)" />
+    <param name="stop_speed_mps" value="$(arg stop_speed_mps)" />
+    <param name="enable_speed_stop" value="$(arg enable_speed_stop)" />
+    <param name="mgeo_target_velocity_topic" value="/mgeo_target_velocity" />
+  </node>
+
+  <node if="$(arg rviz)" pkg="rviz" type="rviz"
+        name="multimodal_inference_rviz" args="-d $(arg rviz_config)"
+        output="screen" />
+
+  <group if="$(arg launch_controller)">
+    <include file="$(find control)/launch/control_mpc_with_weight.launch">
+      <arg name="controller_mode" value="mpc" />
+      <arg name="path_topic" value="/multimodal_learning/predicted_path" />
+      <arg name="path_start_index" value="0" />
+      <arg name="target_velocity_topic" value="/target_velocity" />
+      <arg name="mode_score_topic" value="/multimodal_learning/mode_scores" />
+      <arg name="stop_full_brake_threshold" value="0.8" />
+      <arg name="stop_latch_threshold" value="0.5" />
+      <arg name="stop_release_drive_threshold" value="0.8" />
+      <arg name="stop_release_hold_sec" value="0.0" />
+      <arg name="launch_stack" value="false" />
+    </include>
+  </group>
+</launch>

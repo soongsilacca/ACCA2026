@@ -6,8 +6,8 @@
        ════════════════════════════════════════════════════════════════ -->
 
   <!-- 기본 파일 경로 설정 -->
-  <arg name="input_scene" default="/home/jinju/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/2026_molit_comp_sample_scene.json" />
-  <arg name="output_scene" default="/home/jinju/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/randomized_final.json" />
+  <arg name="input_scene" default="/home/acca/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/2026_molit_comp_sample_scene.json" />
+  <arg name="output_scene" default="/home/acca/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/randomized_final.json" />
   <arg name="ip" default="127.0.0.1" />
   <arg name="port" default="9095" />
 
@@ -24,6 +24,8 @@
     <param name="port" value="$(arg port)" />
     <param name="scenario_file" value="$(arg output_scene)" />
     <param name="load_on_start" value="true" />
+    <param name="network" value="false" />
+    <param name="pause" value="false" />
   </node>
 
 </launch>

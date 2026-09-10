@@ -1,0 +1,9 @@
+<launch>
+  <arg name="link_file" default="$(find map_viz)/scripts/link_set.json" />
+  <arg name="config" default="$(find teacher_map_studio)/config/planner_zones.yaml" />
+  <node pkg="teacher_map_studio" type="planner_dispatcher_node.py"
+        name="teacher_planner_dispatcher" output="screen">
+    <param name="link_file" value="$(arg link_file)" />
+    <param name="config" value="$(arg config)" />
+  </node>
+</launch>

@@ -1,0 +1,22 @@
+# Safety gate parameters
+
+# override_only : publish nothing while safe (keyboard driving stays manual),
+#                 take over and brake on E-STOP. Use for manual testing.
+# gate          : relay /ctrl_cmd_raw continuously, substitute brake on E-STOP.
+#                 Use once the MPC publishes to ctrl_cmd_raw.
+mode: override_only
+
+ctrl_cmd_topic: /ctrl_cmd          # CHECK the exact name your bridge subscribes to
+raw_cmd_topic: /ctrl_cmd_raw
+vehicle_status_topic: /morai/ego_vehicle_status
+
+publish_hz: 30.0
+brake_value: 1.0
+ctrl_mode: 2                       # 2 = external control
+gear: 4                            # 4 = D
+cmd_type: 1                        # longitudinal type 1 = accel / brake
+
+release_speed: 0.2                 # m/s, treated as standstill
+release_hold_sec: 1.0              # hold the brake this long after stopping
+trigger_timeout: 0.5               # judgement node silent -> fail safe
+raw_timeout: 0.5                   # upstream controller silent -> brake

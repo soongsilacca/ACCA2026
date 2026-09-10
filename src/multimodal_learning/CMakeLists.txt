@@ -6,6 +6,7 @@ catkin_package()
 catkin_install_python(PROGRAMS
   scripts/extract_bag_dataset.py scripts/train.py scripts/evaluate.py
   scripts/inference_node.py scripts/tcp_inference_node.py
+  scripts/simlingo_inference_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 install(DIRECTORY config launch model_artifacts
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

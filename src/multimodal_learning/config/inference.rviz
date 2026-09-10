@@ -1,107 +1,357 @@
 Panels:
   - Class: rviz/Displays
-    Name: Displays
+    Help Height: 70
+    Name: V17 Layers
+    Property Tree Widget:
+      Expanded: ~
+      Splitter Ratio: 0.5
+    Tree Height: 117
+  - Class: rviz/Selection
+    Name: Inspector
+  - Class: rviz/Time
+    Name: Timing
+    SyncMode: 0
+    SyncSource: Front Camera
+Preferences:
+  PromptSaveOnExit: true
+Toolbars:
+  toolButtonStyle: 2
 Visualization Manager:
   Class: ""
   Displays:
-    - Alpha: 0.5
-      Cell Size: 1
-      Class: rviz/Grid
-      Color: 160; 160; 164
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 0.2199999988079071
+          Cell Size: 1
+          Class: rviz/Grid
+          Color: 45; 67; 88
+          Enabled: true
+          Line Style:
+            Line Width: 0.029999999329447746
+            Value: Lines
+          Name: Metric Grid 1m
+          Normal Cell Count: 0
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Plane: XY
+          Plane Cell Count: 80
+          Reference Frame: base_link
+          Value: true
+        - Alpha: 0.3499999940395355
+          Class: rviz/Axes
+          Enabled: true
+          Length: 1
+          Name: Ego Axes
+          Radius: 0.10000000149011612
+          Reference Frame: base_link
+          Show Trail: false
+          Value: true
+        - Class: rviz/TF
+          Enabled: true
+          Filter (blacklist): ""
+          Filter (whitelist): ""
+          Frame Timeout: 15
+          Frames:
+            All Enabled: true
+            base_link:
+              Value: true
+            camera_front:
+              Value: true
+            camera_left:
+              Value: true
+            camera_right:
+              Value: true
+            gps:
+              Value: true
+            imu:
+              Value: true
+            map:
+              Value: true
+            odom:
+              Value: true
+            velodyne:
+              Value: true
+          Marker Alpha: 1
+          Marker Scale: 0.44999998807907104
+          Name: Sensor TF
+          Show Arrows: true
+          Show Axes: true
+          Show Names: true
+          Tree:
+            map:
+              odom:
+                base_link:
+                  camera_front:
+                    {}
+                  camera_left:
+                    {}
+                  camera_right:
+                    {}
+                  gps:
+                    {}
+                  imu:
+                    {}
+                  velodyne:
+                    {}
+          Update Interval: 0
+          Value: true
       Enabled: true
-      Name: Grid
-      Plane: XY
-      Plane Cell Count: 40
-    - Alpha: 1
-      Buffer Length: 1
-      Class: rviz/Path
-      Color: 255; 45; 45
+      Name: Scene
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 0.5799999833106995
+          Buffer Length: 1
+          Class: rviz/Path
+          Color: 60; 255; 115
+          Enabled: true
+          Head Diameter: 0.30000001192092896
+          Head Length: 0.20000000298023224
+          Length: 0.30000001192092896
+          Line Style: Lines
+          Line Width: 0.07500000298023224
+          Name: MGeo Local Route
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0.029999999329447746
+          Pose Color: 255; 85; 255
+          Pose Style: None
+          Queue Size: 10
+          Radius: 0.029999999329447746
+          Shaft Diameter: 0.10000000149011612
+          Shaft Length: 0.10000000149011612
+          Topic: /local_route
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Buffer Length: 1
+          Class: rviz/Path
+          Color: 0; 235; 255
+          Enabled: true
+          Head Diameter: 0.30000001192092896
+          Head Length: 0.20000000298023224
+          Length: 0.30000001192092896
+          Line Style: Lines
+          Line Width: 0.18000000715255737
+          Name: MPC MGeo Path
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0.18000000715255737
+          Pose Color: 255; 85; 255
+          Pose Style: None
+          Queue Size: 10
+          Radius: 0.029999999329447746
+          Shaft Diameter: 0.10000000149011612
+          Shaft Length: 0.10000000149011612
+          Topic: /local_route
+          Unreliable: false
+          Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /multimodal_learning/predicted_path_markers
+          Name: Teacher Decision Surface and HUD
+          Namespaces:
+            pedestrian_prediction: true
+            signal_target: true
+            teacher_decision: true
+            teacher_path_surface: true
+          Queue Size: 20
+          Value: true
       Enabled: true
-      Head Diameter: 0.3
-      Head Length: 0.2
-      Line Style: Lines
-      Line Width: 0.12
-      Name: Predicted Path
-      Offset:
-        X: 0
-        Y: 0
-        Z: 0.12
-      Pose Style: None
-      Shaft Diameter: 0.1
-      Shaft Length: 0.1
-      Topic: /multimodal_learning/predicted_path
-    - Alpha: 0.65
-      Buffer Length: 1
-      Class: rviz/Path
-      Color: 40; 220; 70
+      Name: V17 Planning
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 0.9200000166893005
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -2
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: Intensity
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 35; 235
+          Min Color: 0; 225; 255
+          Name: Filtered LiDAR
+          Position Transformer: XYZ
+          Queue Size: 6
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.04500000178813934
+          Style: Flat Squares
+          Topic: /velodyne_points_filtered
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+        - Angle Tolerance: 0.10000000149011612
+          Class: rviz/Odometry
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: true
+          Keep: 80
+          Name: Ego Pose Trail
+          Position Tolerance: 0.07999999821186066
+          Queue Size: 10
+          Shape:
+            Alpha: 0.800000011920929
+            Axes Length: 0.6499999761581421
+            Axes Radius: 0.04500000178813934
+            Color: 255; 215; 30
+            Head Length: 0.25
+            Head Radius: 0.10000000149011612
+            Shaft Length: 0.6000000238418579
+            Shaft Radius: 0.04500000178813934
+            Value: Arrow
+          Topic: /localization/kinematic_state
+          Unreliable: false
+          Value: true
       Enabled: true
-      Line Style: Lines
-      Line Width: 0.06
-      Name: Local Route
-      Offset:
-        X: 0
-        Y: 0
-        Z: 0.05
-      Pose Style: None
-      Topic: /local_route
-    - Class: rviz/MarkerArray
+      Name: Perception
+    - Class: rviz/Group
+      Displays:
+        - Class: rviz/Image
+          Enabled: false
+          Image Topic: /camera/front/image
+          Max Value: 1
+          Median window: 5
+          Min Value: 0
+          Name: Front Camera
+          Normalize Range: true
+          Queue Size: 2
+          Transport Hint: compressed
+          Unreliable: false
+          Value: false
+        - Class: rviz/Image
+          Enabled: true
+          Image Topic: /camera/left/image_raw
+          Max Value: 1
+          Median window: 5
+          Min Value: 0
+          Name: Left Camera
+          Normalize Range: true
+          Queue Size: 2
+          Transport Hint: raw
+          Unreliable: false
+          Value: true
+        - Class: rviz/Image
+          Enabled: true
+          Image Topic: /camera/right/image_raw
+          Max Value: 1
+          Median window: 5
+          Min Value: 0
+          Name: Right Camera
+          Normalize Range: true
+          Queue Size: 2
+          Transport Hint: raw
+          Unreliable: false
+          Value: true
       Enabled: true
-      Marker Topic: /multimodal_learning/predicted_path_markers
-      Name: V9 Predicted Path Markers
-      Namespaces:
-        v9_predicted_path: true
-      Queue Size: 10
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Min Color: 0; 0; 0
-      Name: Filtered LiDAR
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.05
-      Style: Points
-      Topic: /velodyne_points_filtered
-      Use Fixed Frame: true
-    - Class: rviz/TF
-      Enabled: true
-      Frame Timeout: 15
-      Marker Scale: 0.5
-      Name: TF
-      Show Arrows: true
-      Show Axes: true
-      Show Names: false
+      Name: Cameras
   Enabled: true
   Global Options:
-    Background Color: 30; 30; 30
+    Background Color: 4; 10; 20
     Default Light: true
-    Fixed Frame: base_link
+    Fixed Frame: map
     Frame Rate: 30
-  Name: root
+  Name: V17 Neon Cockpit
   Tools:
     - Class: rviz/Interact
+      Hide Inactive Objects: true
     - Class: rviz/MoveCamera
     - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+  Value: true
   Views:
     Current:
+      Angle: -0.5649999380111694
       Class: rviz/TopDownOrtho
-      Angle: 0
-      Name: Top Down
-      Scale: 20
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Scale: 14.253993034362793
       Target Frame: base_link
+      X: 1.9116644859313965
+      Y: 2.5647387504577637
+    Saved:
+      - Angle: 0
+        Class: rviz/TopDownOrtho
+        Enable Stereo Rendering:
+          Stereo Eye Separation: 0.05999999865889549
+          Stereo Focal Distance: 1
+          Swap Stereo Eyes: false
+          Value: false
+        Invert Z Axis: false
+        Name: Tight Top Down
+        Near Clip Distance: 0.009999999776482582
+        Scale: 14
+        Target Frame: base_link
+        X: 9
+        Y: 0
+      - Class: rviz/Orbit
+        Distance: 28
+        Enable Stereo Rendering:
+          Stereo Eye Separation: 0.05999999865889549
+          Stereo Focal Distance: 1
+          Swap Stereo Eyes: false
+          Value: false
+        Field of View: 0.7853981852531433
+        Focal Point:
+          X: 12
+          Y: 0
+          Z: 0
+        Focal Shape Fixed Size: true
+        Focal Shape Size: 0.05000000074505806
+        Invert Z Axis: false
+        Name: Cinematic Chase
+        Near Clip Distance: 0.009999999776482582
+        Pitch: 0.6499999761581421
+        Target Frame: base_link
+        Yaw: 3.140000104904175
 Window Geometry:
-  Height: 900
-  Width: 1400
+  Front Camera:
+    collapsed: false
+  Height: 538
+  Hide Left Dock: false
+  Hide Right Dock: true
+  Inspector:
+    collapsed: false
+  Left Camera:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd000000010000000000000156000001c0fc0200000006fb0000001800460072006f006e0074002000430061006d00650072006102000001e70000025f000002fa0000017dfb00000016004c006500660074002000430061006d006500720061010000003d0000005f0000001600fffffffb0000001800520069006700680074002000430061006d00650072006101000000a20000005d0000001600fffffffb000000140056003100370020004c006100790065007200730100000105000000f8000000c900fffffffb000000120049006e00730070006500630074006f007200000002f3000000740000005c00fffffffb0000000c00540069006d0069006e006700000002dd000000390000003900ffffff0000031c000001c000000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Right Camera:
+    collapsed: false
+  Timing:
+    collapsed: false
+  V17 Layers:
+    collapsed: false
+  Width: 1144
+  X: 97
+  Y: 402

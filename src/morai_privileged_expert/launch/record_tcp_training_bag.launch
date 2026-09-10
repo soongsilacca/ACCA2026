@@ -1,0 +1,37 @@
+<launch>
+  <!-- Timestamp is appended automatically: PREFIX_YYYY-MM-DD-HH-MM-SS.bag -->
+  <arg name="bag_prefix" default="$(env HOME)/acca_ws/tcp_teacher_" />
+  <arg name="compression" default="--lz4" />
+  <arg name="buffer_mb" default="2048" />
+  <arg name="split_size_mb" default="4096" />
+
+  <!--
+    TCP input, privileged supervision, and replay/debug evidence only.
+    Raw camera and Velodyne packet topics are deliberately excluded.
+  -->
+  <node pkg="rosbag" type="record" name="tcp_teacher_bag_recorder" output="screen"
+        args="$(arg compression) --buffsize=$(arg buffer_mb) --split --size=$(arg split_size_mb) --output-prefix=$(arg bag_prefix)
+              /camera/front/image/compressed
+              /teacher/ground_truth_state
+              /localization/kinematic_state
+              /morai/ego_vehicle_status
+              /global_path
+              /local_route
+              /mgeo_tokens
+              /mgeo_target_velocity
+              /privileged_expert/path
+              /privileged_expert/target_velocity
+              /privileged_expert/behavior
+              /privileged_expert/mode_scores
+              /privileged_expert/ready
+              /Object_topic
+              /SetTrafficLight
+              /privileged_expert/controlled_traffic_light
+              /ctrl_cmd
+              /tracking_info
+              /morai/collision_data
+              /imu
+              /gps
+              /tf
+              /tf_static" />
+</launch>

@@ -14,7 +14,10 @@
   <arg name="pcap" default="" />
   <!-- MORAI Ego Vehicle Status destination port -->
   <arg name="ego_status_port" default="9011" />
+  <arg name="enable_ego_status" default="true" />
   <arg name="enable_ctrl_sender" default="false" />
+  <arg name="launch_localization" default="true" />
+  <arg name="mgeo_odom_topic" default="/localization/kinematic_state" />
   <!-- Camera compression / optional training-bag recording -->
   <arg name="camera_jpeg_quality" default="80" />
   <arg name="record_bag" default="false" />
@@ -28,6 +31,7 @@
   <include file="$(find morai_udp_bridge)/launch/sensors.launch" />
   <include file="$(find morai_udp_bridge)/launch/ego_network.launch">
     <arg name="ego_status_port" value="$(arg ego_status_port)" />
+    <arg name="enable_ego_status" value="$(arg enable_ego_status)" />
     <arg name="enable_ctrl_sender" value="$(arg enable_ctrl_sender)" />
   </include>
 
@@ -70,13 +74,16 @@
         output="screen" />
 
   <!-- /localization/kinematic_state -->
-  <include file="$(find localization)/launch/localization_global.launch">
-    <arg name="use_sim_time" value="$(arg use_sim_time)" />
-  </include>
+  <group if="$(arg launch_localization)">
+    <include file="$(find localization)/launch/localization_global.launch">
+      <arg name="use_sim_time" value="$(arg use_sim_time)" />
+    </include>
+  </group>
 
   <!-- /global_path, /local_route, /mgeo_tokens -->
   <include file="$(find mgeo_route_publisher)/launch/mgeo_route_publisher.launch">
     <arg name="global_path_csv" value="$(arg global_path_csv)" />
+    <arg name="odom_topic" value="$(arg mgeo_odom_topic)" />
   </include>
 
   <!--

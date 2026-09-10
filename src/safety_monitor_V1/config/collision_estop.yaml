@@ -1,0 +1,87 @@
+# Collision Imminent E-STOP parameters (report 8.5.2)
+
+lidar_topic: /velodyne_points_filtered
+vehicle_status_topic: /morai/ego_vehicle_status
+imu_topic: /imu
+local_route_topic: /local_route
+
+# --- frame -------------------------------------------------------------------
+# Confirmed with the lidar team: /velodyne_points_filtered is published in the
+# velodyne sensor frame, so the node applies the extrinsics below to convert
+# into base_link. Setting this true would overestimate every distance by the
+# 3.854 m mounting offset -- i.e. recognise danger too late. The node re-checks
+# it against the observed ground plane (or, if that has been filtered out
+# upstream, the nearest-return distance) at startup.
+cloud_in_base_link: false
+lidar_offset_x: 3.854     # MORAI final_Sen.json, base_link <- velodyne
+lidar_offset_z: 0.220
+
+# --- corridor geometry ---------------------------------------------------------
+ego_width: 1.892          # Hyundai Ioniq5
+lateral_margin: 0
+front_bumper_x: 3.845     # wheelbase 3.000 + front overhang 0.845
+ground_z: 0.15            # no-op if ground removal is applied upstream
+ceiling_z: 2.50           # vehicle height 2.434 m
+min_points: 5
+
+# --- watch range: speed-scaled, floored, latched during E-STOP ------------------
+# Scales with speed so distant obstacles are not missed at high speed, but is
+# frozen at its value at the moment of latch: braking lowers v, and a naive
+# v-based range would otherwise shrink the corridor out from under the
+# obstacle that triggered the stop, clearing the latch mid-brake. range_min_floor
+# is a second, independent line of defence.
+range_min_floor: 15.0     # always watch at least this far, even at v=0
+range_base: 10.0
+range_per_speed: 2.0      # 60 km/h (16.7 m/s) -> 43.4 m
+range_max: 50.0
+
+# --- local route corridor -------------------------------------------------------
+# Preferred corridor source when /local_route is fresh and well-formed; falls
+# back to the yaw-rate arc otherwise. This keeps the node judgeable when the
+# route topic dies, times out, or carries non-finite/degenerate data --
+# the same independence principle as the arc-only design, with a more
+# accurate primary source when the route is healthy.
+route_enable: true
+route_timeout: 0.5        # topic silent longer than this -> fall back to arc
+route_min_points: 4       # shorter route -> fall back to arc
+route_max_gap: 5.0        # m, larger gap between consecutive points -> fall back
+
+# --- thresholds ------------------------------------------------------------------
+ttc_estop: 1.6
+ttc_release: 2.0
+confirm_frames: 2         # LiDAR observed at ~7 Hz, so 3 frames cost 0.41 s
+release_hold_sec: 1.0
+
+# Braking model. No measurement was taken, so a_max is set below the dry-asphalt
+# literature range (8-9 m/s^2) to lengthen the predicted stopping distance --
+# the conservative direction. Values below ~5 push d_stop past normal following
+# distance and trip during ordinary car-following, so 6.5 is the practical floor.
+a_max: 6.5
+brake_margin: 2.5
+release_margin: 3.0
+brake_cond_min_speed: 2.0
+brake_cond_ttc_gate: 2.0  # condition B also requires a fast closure
+
+min_rel_speed: 0.1
+lpf_alpha: 0.3
+stale_lidar_sec: 0.6      # measured max interval 0.286 s at ~7.3 Hz
+stale_speed_sec: 0.5
+reverse_speed_threshold: 0.5   # deliberate reverse, not roll-back after a stop
+publish_hz: 20.0
+publish_markers: true
+
+# --- lateral approach tracking ---------------------------------------------
+# corridor 바깥 밴드에서 경로 쪽으로 접근하는 물체를 감시.
+# route는 프레임마다 흔들리므로 임계를 흔들림 폭 위에 두고, 여러 프레임
+# 지속돼야 인정한다. 흔들림은 평균 0이라 누적되지 않고 실제 접근만 남는다.
+lateral_enable: true
+watch_band: 2.5           # corridor 바깥 감시 폭 (m)
+lat_bin_size: 5.0         # 종방향 구간 크기, 프레임 간 대응용
+lat_rate_min: 1.0         # 이보다 느린 접근은 흔들림으로 간주 (m/s)
+lat_rate_alpha: 0.3       # 변화율 LPF
+lat_confirm_bins: 3       # 연속 3프레임 유지돼야 인정
+lat_range_ratio: 0.6      # 횡방향은 watch_range의 60%까지만
+
+# --- route corridor 최적화 ---------------------------------------------------
+route_reach_window: 8.0   # 직전 매칭 위치 ±8m만 재탐색
+route_side_margin: 8.0    # route 횡폭 + corridor + band + 이 여유까지만 후보

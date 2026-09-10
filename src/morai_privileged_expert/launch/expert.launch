@@ -1,0 +1,152 @@
+<launch>
+  <arg name="launch_sensors" default="true" />
+  <arg name="launch_controller" default="true" />
+  <arg name="rviz" default="true" />
+  <arg name="front_camera_view" default="true" />
+  <arg name="control_traffic_lights" default="true" />
+  <arg name="config" default="$(find morai_privileged_expert)/config/expert.yaml" />
+  <arg name="object_topic" default="/Object_topic" />
+  <arg name="object_frame" default="map" />
+  <arg name="require_objects" default="true" />
+  <arg name="object_info_port" default="7505" />
+  <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+  <arg name="teacher_ego_status_port" default="9011" />
+  <arg name="ego_status_port" default="9009" />
+  <arg name="teacher_gt_topic" default="/teacher/ground_truth_state" />
+
+  <group if="$(arg launch_sensors)">
+    <include file="$(find multimodal_learning)/launch/multimodal_sensors.launch">
+      <arg name="global_path_csv" value="$(arg global_path_csv)" />
+      <arg name="enable_ctrl_sender" value="true" />
+      <arg name="enable_ego_status" value="true" />
+      <arg name="ego_status_port" value="$(arg ego_status_port)" />
+      <!-- TCP bags require the independently fused runtime state in addition
+           to the privileged raw GT state. -->
+      <arg name="launch_localization" value="true" />
+      <arg name="mgeo_odom_topic" value="$(arg teacher_gt_topic)" />
+    </include>
+  </group>
+
+  <!-- Raw simulator pose is isolated on a teacher-only GT topic. It does not
+       publish or remap /localization/kinematic_state. -->
+  <node pkg="morai_udp_bridge" type="ego_ground_truth_state_publisher_node.py"
+        name="morai_ego_ground_truth_state" output="screen">
+    <param name="port" value="$(arg teacher_ego_status_port)" />
+    <param name="gt_topic" value="$(arg teacher_gt_topic)" />
+  </node>
+
+  <node pkg="morai_udp_bridge" type="object_info_publisher_node.py"
+        name="morai_object_info" output="screen">
+    <param name="port" value="$(arg object_info_port)" />
+    <param name="topic" value="$(arg object_topic)" />
+  </node>
+
+  <node pkg="morai_privileged_expert" type="morai_upstream_pdm_node.py"
+        name="morai_privileged_expert" output="screen" respawn="true" respawn_delay="2.0">
+    <rosparam command="load" file="$(arg config)" />
+    <param name="object_topic" value="$(arg object_topic)" />
+    <param name="object_frame" value="$(arg object_frame)" />
+    <param name="require_objects" value="$(arg require_objects)" />
+    <param name="map_dir" value="$(find map_viz)/scripts" />
+    <param name="local_ip" value="127.0.0.1" />
+    <param name="local_port" value="7503" />
+    <param name="morai_ip" value="127.0.0.1" />
+    <param name="morai_port" value="7607" />
+    <param name="traffic_command_topic" value="/SetTrafficLight" />
+    <param name="odom_topic" value="$(arg teacher_gt_topic)" />
+    <param name="traffic_stop_buffer_m" value="10.0" />
+    <rosparam param="traffic_stop_buffer_overrides">{C1256W000016: 10.0, C1256W000052: 15.0, C1256W000091: 15.0}</rosparam>
+    <param name="traffic_camera_based_stop" value="false" />
+    <param name="traffic_camera_view_distance_m" value="20.0" />
+    <param name="traffic_camera_search_back_m" value="60.0" />
+    <param name="traffic_group_radius_m" value="25.0" />
+    <param name="traffic_path_tolerance_m" value="6.0" />
+    <param name="traffic_link_match_tolerance_m" value="4.0" />
+    <param name="traffic_lookahead_m" value="180.0" />
+    <param name="traffic_commit_margin_m" value="3.0" />
+    <param name="traffic_clear_distance_m" value="12.0" />
+    <param name="target_speed_limit_ratio" value="1.0" />
+    <param name="pedestrian_forecast_length_sec" value="4.0" />
+    <param name="stationary_pedestrian_speed_mps" value="0.2" />
+    <param name="stationary_pedestrian_confirm_sec" value="1.0" />
+    <param name="actor_detection_radius_m" value="80.0" />
+    <!-- Infer turning motion from consecutive ObjectInfo headings. Without
+         this, circulating NPCs are forecast straight through the ego merge. -->
+    <param name="npc_yaw_rate_ema" value="0.5" />
+    <param name="npc_max_yaw_rate_deg_sec" value="55.0" />
+    <param name="npc_turn_min_speed_mps" value="0.5" />
+    <param name="static_avoid_min_distance_m" value="3.0" />
+    <param name="static_avoid_max_distance_m" value="60.0" />
+    <param name="static_avoid_lateral_tolerance_m" value="4.0" />
+    <param name="static_avoid_clearance_m" value="1.5" />
+    <param name="static_avoid_max_lane_factor" value="2.0" />
+    <param name="static_avoid_speed_mps" value="5.0" />
+    <param name="pedestrian_hazard_full_stop" value="true" />
+    <param name="pedestrian_caution_horizon_sec" value="6.0" />
+    <param name="pedestrian_caution_clearance_m" value="2.5" />
+    <param name="pedestrian_caution_decel_mps2" value="2.5" />
+    <param name="pedestrian_stop_margin_m" value="8.0" />
+    <param name="pedestrian_caution_max_speed_mps" value="8.0" />
+    <param name="pedestrian_front_slow_distance_m" value="50.0" />
+    <param name="pedestrian_front_slow_speed_mps" value="5.0" />
+    <param name="pedestrian_front_half_angle_deg" value="40.0" />
+    <param name="goal_slowdown_distance_m" value="20.0" />
+    <param name="goal_stop_distance_m" value="1.5" />
+    <param name="goal_decel_mps2" value="2.0" />
+    <param name="goal_index_margin" value="3" />
+  </node>
+
+  <node if="$(arg control_traffic_lights)" pkg="morai_privileged_expert"
+        type="privileged_traffic_manager.py" name="privileged_traffic_manager"
+        output="screen">
+    <remap from="/localization/kinematic_state" to="$(arg teacher_gt_topic)" />
+    <param name="map_dir" value="$(find map_viz)/scripts" />
+    <param name="min_phase_sec" value="15.0" />
+    <param name="max_phase_sec" value="25.0" />
+    <!-- A straight movement can be held by yellow + red + protected-left +
+         yellow + red. Keep that complete waiting window at about 16 to 20 s. -->
+    <param name="red_min_phase_sec" value="2.0" />
+    <param name="red_max_phase_sec" value="3.0" />
+    <param name="left_min_phase_sec" value="8.0" />
+    <param name="left_max_phase_sec" value="9.0" />
+    <param name="yellow_min_phase_sec" value="2.0" />
+    <param name="yellow_max_phase_sec" value="2.5" />
+    <param name="global_path_csv" value="$(arg global_path_csv)" />
+    <param name="activation_radius_m" value="300.0" />
+    <param name="upstream_link_depth" value="3" />
+    <param name="signal_group_radius_m" value="25.0" />
+    <param name="signal_group_distance_tolerance_m" value="20.0" />
+    <param name="resend_sec" value="0.2" />
+    <rosparam param="phase_sequence">[16, 4, 1, 33, 4, 1]</rosparam>
+    <rosparam param="target_light_ids">["C1256W000016", "C1256W000018", "C1256W000052", "C1256W000077", "C1256W000091", "C1256W000123"]</rosparam>
+  </node>
+
+  <group if="$(arg launch_controller)">
+    <include file="$(find control)/launch/control_mpc_with_weight.launch">
+      <arg name="path_topic" value="/privileged_expert/path" />
+      <arg name="target_velocity_topic" value="/privileged_expert/target_velocity" />
+      <arg name="mode_score_topic" value="/privileged_expert/mode_scores" />
+      <arg name="odom_topic" value="$(arg teacher_gt_topic)" />
+      <arg name="path_start_index" value="1" />
+      <arg name="stop_release_hold_sec" value="0.0" />
+      <arg name="launch_stack" value="false" />
+    </include>
+  </group>
+
+  <!-- Reuse the established driving layout, but show the privileged expert
+       trajectory/proposals instead of the learned-model outputs. -->
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="privileged_expert_rviz"
+        args="-d $(find multimodal_learning)/config/inference.rviz" output="screen">
+    <remap from="/localization/kinematic_state" to="$(arg teacher_gt_topic)" />
+    <remap from="/multimodal_learning/predicted_path_markers"
+           to="/privileged_expert/markers" />
+    <remap from="/local_route" to="/privileged_expert/path" />
+  </node>
+
+  <!-- Large standalone front-camera monitor alongside the driving RViz. -->
+  <node if="$(arg front_camera_view)" pkg="image_view" type="image_view"
+        name="privileged_expert_front_camera" output="screen">
+    <remap from="image" to="/camera/front/image_raw" />
+    <param name="autosize" value="true" />
+  </node>
+</launch>

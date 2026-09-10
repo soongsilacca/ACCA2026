@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>safety_monitor</name>
+  <version>0.1.0</version>
+  <description>
+    Collision Imminent E-STOP for the V9 autonomous driving stack (report 8.5.2).
+    Independent non-learning safety layer: judges collision imminence from raw
+    LiDAR and ego velocity only, and publishes /safety/estop_trigger.
+  </description>
+
+  <maintainer email="team@example.com">ACCA 2026 safety</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>rospy</build_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_export_depend>sensor_msgs</build_export_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_export_depend>visualization_msgs</build_export_depend>
+  <build_depend>morai_msgs</build_depend>
+  <build_export_depend>morai_msgs</build_export_depend>
+
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>morai_msgs</exec_depend>
+  <!--
+    morai_msgs is imported at runtime inside a try/except. It is deliberately
+    not listed as a dependency so the package still builds on machines without
+    it; the node then falls back to /safety/ego_speed_mps.
+  -->
+
+  <export>
+  </export>
+</package>

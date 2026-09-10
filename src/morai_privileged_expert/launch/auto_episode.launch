@@ -1,0 +1,106 @@
+<launch>
+  <arg name="input_scene" default="/home/acca/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/2026_molit_comp_sample_scene.json" />
+  <arg name="output_scene" default="/home/acca/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Scenario/R_KR_PR_K-city_2025/randomized_final.json" />
+  <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+  <arg name="network_setting_file" default="/home/acca/MoraiLauncher_Lin/MoraiLauncher_Lin_Data/SaveFile/Network/25.S4.MolitComp03/final_Net.json" />
+  <arg name="reload_on_collision" default="true" />
+  <arg name="rviz" default="true" />
+  <arg name="network_autoconnect" default="true" />
+  <arg name="simulator_watchdog" default="true" />
+  <arg name="auto_record" default="true" />
+  <arg name="bag_directory" default="$(env HOME)/acca_ws/tcp_teacher_bags" />
+  <arg name="episode_timeout_sec" default="900.0" />
+  <arg name="minimum_free_gb" default="5.0" />
+
+  <include file="$(find morai_privileged_expert)/launch/expert.launch">
+    <arg name="global_path_csv" value="$(arg global_path_csv)" />
+    <arg name="rviz" value="$(arg rviz)" />
+  </include>
+
+  <node pkg="morai_udp_bridge" type="scenario_episode_manager_node.py"
+        name="morai_scenario_episode_manager" output="screen" required="true">
+    <param name="input_scene" value="$(arg input_scene)" />
+    <param name="output_scene" value="$(arg output_scene)" />
+    <param name="global_path_csv" value="$(arg global_path_csv)" />
+    <param name="network_setting_file" value="$(arg network_setting_file)" />
+    <param name="load_network" value="true" />
+    <!-- Preserve the currently connected UDP endpoints during every reset.
+         final_Net.json is still copied intact into the scenario profile. -->
+    <param name="scenario_load_network" value="false" />
+    <param name="auto_connect_network" value="true" />
+    <param name="ip" value="127.0.0.1" />
+    <param name="port" value="9095" />
+    <param name="departure_radius_m" value="30.0" />
+    <param name="finish_radius_m" value="5.0" />
+    <param name="minimum_episode_sec" value="30.0" />
+    <param name="reload_settle_sec" value="2.0" />
+    <param name="reload_ack_radius_m" value="5.0" />
+    <!-- Do not resend ScenarioLoad while Unity is still loading the previous
+         request.  Reconnect runs after the load/settle window. -->
+    <param name="reload_retry_sec" value="30.0" />
+    <param name="reload_max_attempts" value="5" />
+    <param name="reload_on_collision" value="$(arg reload_on_collision)" />
+    <param name="collision_actor_distance_m" value="10.0" />
+    <!-- MORAI reports NPC spawn-overlap collisions as scene-wide events. -->
+    <param name="spawn_collision_ignore_radius_m" value="5.0" />
+    <param name="impact_fallback_enabled" value="true" />
+    <param name="impact_pre_speed_mps" value="1.5" />
+    <param name="impact_stop_speed_mps" value="0.25" />
+    <param name="impact_drop_window_sec" value="0.8" />
+    <param name="impact_stop_hold_sec" value="0.8" />
+    <param name="episode_timeout_sec" value="$(arg episode_timeout_sec)" />
+    <param name="finish_index_margin" value="10" />
+    <param name="finish_stop_speed_mps" value="0.3" />
+    <param name="finish_stop_hold_sec" value="1.0" />
+    <param name="auto_record" value="$(arg auto_record)" />
+    <param name="bag_directory" value="$(arg bag_directory)" />
+    <param name="bag_split_size_mb" value="4096" />
+    <param name="bag_buffer_mb" value="2048" />
+    <param name="minimum_free_gb" value="$(arg minimum_free_gb)" />
+    <param name="simulator_watchdog_enabled" value="$(arg simulator_watchdog)" />
+    <!-- Allow the GUI bootstrap Connect to enable the ScenarioLoad UDP
+         subscriber before the first load packet is sent. -->
+    <param name="startup_load_delay_sec" value="5.0" />
+  </node>
+
+  <node if="$(arg simulator_watchdog)" pkg="morai_udp_bridge"
+        type="morai_simulator_watchdog_node.py"
+        name="morai_simulator_watchdog" output="screen">
+    <param name="executable" value="/home/acca/MoraiLauncher_Lin/MoraiLauncher_Lin.x86_64" />
+    <param name="restart_delay_sec" value="3.0" />
+    <param name="retry_delay_sec" value="15.0" />
+    <param name="window_timeout_sec" value="120.0" />
+    <param name="window_title" value="Simulator" />
+    <param name="recovery_request_grace_sec" value="5.0" />
+    <!-- Also recover a live Unity process that has stopped publishing GT. -->
+    <param name="hang_gt_timeout_sec" value="30.0" />
+  </node>
+
+  <node if="$(arg network_autoconnect)" pkg="morai_udp_bridge"
+        type="morai_network_autoconnect_node.py"
+        name="morai_network_autoconnect" output="screen">
+    <param name="delay_sec" value="2.5" />
+    <param name="load_disconnect_timeout_sec" value="8.0" />
+    <param name="load_disconnect_stale_sec" value="1.0" />
+    <param name="post_load_settle_sec" value="8.0" />
+    <!-- One fresh packet is not enough: both status channels must remain
+         alive before Connect is considered successful. -->
+    <param name="stream_freshness_sec" value="1.5" />
+    <param name="stream_stability_sec" value="3.0" />
+    <param name="connect_confirmation_timeout_sec" value="12.0" />
+    <!-- Give active UDP streams time to prove that MORAI is already
+         connected before touching its Connect/Disconnect toggle. -->
+    <param name="startup_delay_sec" value="2.0" />
+    <param name="retry_sec" value="4.0" />
+    <param name="max_attempts" value="3" />
+    <!-- A positive drive command with no GT motion means MORAI's control
+         subscriber may not be connected even while status UDP is alive. -->
+    <param name="control_stall_sec" value="5.0" />
+    <param name="control_retry_cooldown_sec" value="12.0" />
+    <param name="minimum_drive_accel" value="0.1" />
+    <param name="minimum_drive_velocity" value="1.0" />
+    <!-- Calibrated for the maximized MORAI S4 Network Settings window. -->
+    <param name="connect_x_ratio" value="0.659" />
+    <param name="connect_y_ratio" value="0.768" />
+  </node>
+</launch>

@@ -3,6 +3,7 @@
   <arg name="link_file" default="$(find map_viz)/scripts/link_set.json" />
   <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" />
   <arg name="config" default="$(find mgeo_route_publisher)/config/mgeo_route.yaml" />
+  <arg name="odom_topic" default="/localization/kinematic_state" />
 
   <node pkg="mgeo_route_publisher" type="mgeo_route_publisher_node.py"
         name="mgeo_route_publisher" output="screen">
@@ -10,5 +11,6 @@
     <param name="node_file" value="$(arg node_file)" />
     <param name="link_file" value="$(arg link_file)" />
     <param name="global_path_csv" value="$(arg global_path_csv)" />
+    <param name="odom_topic" value="$(arg odom_topic)" />
   </node>
 </launch>

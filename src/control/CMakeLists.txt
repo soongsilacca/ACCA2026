@@ -171,6 +171,7 @@ catkin_install_python(PROGRAMS
   src/pure_pursuit.py
   src/mpc_node_osqp.py
   src/mpc_node_osqp2.py
+  src/mpc_node_collision.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

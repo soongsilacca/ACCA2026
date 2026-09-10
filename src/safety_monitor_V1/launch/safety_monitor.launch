@@ -1,0 +1,15 @@
+<launch>
+  <!-- Full safety layer: judgement + execution -->
+  <arg name="gate_mode" default="override_only" />
+
+  <node pkg="safety_monitor" type="collision_estop_node.py"
+        name="collision_estop" output="screen" respawn="true">
+    <rosparam file="$(find safety_monitor)/config/collision_estop.yaml" command="load" />
+  </node>
+
+  <node pkg="safety_monitor" type="safety_gate_node.py"
+        name="safety_gate" output="screen" respawn="true">
+    <rosparam file="$(find safety_monitor)/config/safety_gate.yaml" command="load" />
+    <param name="mode" value="$(arg gate_mode)" />
+  </node>
+</launch>

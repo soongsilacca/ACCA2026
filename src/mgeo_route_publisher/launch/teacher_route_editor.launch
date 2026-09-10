@@ -1,0 +1,6 @@
+<launch>
+  <arg name="config" default="$(find mgeo_route_publisher)/config/teacher_route.yaml" />
+  <node pkg="mgeo_route_publisher" type="teacher_route_editor.py"
+        name="teacher_route_editor" output="screen"
+        args="--config $(arg config)" />
+</launch>

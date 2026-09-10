@@ -1,0 +1,79 @@
+<launch>
+  <!-- MORAI rear LiDAR network setting:
+       Host Sensor Port (simulator source): 2369
+       Destination IP/Port (this PC):       127.0.0.1:2368
+       The ROS Velodyne driver binds only the destination port (2368). -->
+  <!-- Empty means accept packets from any sender address.  This is safer when
+       MORAI and ROS run across a VM/container even if Destination IP is local. -->
+  <arg name="device_ip" default="" />
+  <arg name="destination_port" default="2368" />
+  <arg name="rpm" default="900.0" />
+  <arg name="min_range" default="0.4" />
+  <arg name="max_range" default="130.0" />
+  <arg name="pcap" default="" />
+  <arg name="launch_driver" default="true" />
+  <arg name="input_topic" default="/rear_lidar/points_raw" />
+
+  <!-- Optional ego pose receiver.  Keep this true for ego-motion-compensated
+       dynamic classification and dead reckoning.  MORAI EgoVehicleStatus must
+       send to 127.0.0.1:9009.  Set false when another node already publishes
+       odom_topic or when inspecting only the relative LiDAR result. -->
+  <arg name="launch_ego_odometry" default="true" />
+  <arg name="ego_status_port" default="9009" />
+  <arg name="odom_topic" default="/rear_lidar/ego_odometry" />
+  <arg name="fallback_odom_topic" default="/localization/kinematic_state" />
+  <arg name="ego_status_topic" default="/morai/ego_vehicle_status" />
+  <arg name="rviz" default="true" />
+  <arg name="enable_ground_filter" default="true" />
+  <arg name="enable_wall_filter" default="true" />
+  <arg name="config" default="$(find rear_lidar_perception)/config/rear_lidar.yaml" />
+
+  <!-- Supplied MORAI mounting pose, also used numerically by the perception
+       node through rear_lidar.yaml. -->
+  <node pkg="tf2_ros" type="static_transform_publisher"
+        name="rear_lidar_static_tf"
+        args="-0.73 0.0 0.22 0.0 0.0 0.0 base_link rear_lidar" />
+
+  <!-- Namespace and inherited remaps prevent collisions with the conventional
+       front-LiDAR topics when this launch is later composed with another stack. -->
+  <group if="$(arg launch_driver)" ns="rear_lidar_driver">
+    <remap from="velodyne_packets" to="/rear_lidar/packets" />
+    <remap from="velodyne_points" to="$(arg input_topic)" />
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
+      <arg name="device_ip" value="$(arg device_ip)" />
+      <arg name="port" value="$(arg destination_port)" />
+      <arg name="frame_id" value="rear_lidar" />
+      <arg name="manager" value="rear_lidar_nodelet_manager" />
+      <arg name="min_range" value="$(arg min_range)" />
+      <arg name="max_range" value="$(arg max_range)" />
+      <arg name="rpm" value="$(arg rpm)" />
+      <arg name="pcap" value="$(arg pcap)" />
+    </include>
+  </group>
+
+  <node if="$(arg launch_ego_odometry)" pkg="morai_udp_bridge"
+        type="ego_ground_truth_state_publisher_node.py"
+        name="rear_lidar_ego_odometry" output="screen">
+    <param name="ip" value="127.0.0.1" />
+    <param name="port" value="$(arg ego_status_port)" />
+    <param name="gt_topic" value="$(arg odom_topic)" />
+    <param name="frame_id" value="map" />
+    <param name="child_frame_id" value="base_link" />
+  </node>
+
+  <node pkg="rear_lidar_perception" type="rear_lidar_perception_node"
+        name="rear_lidar_perception" output="screen" required="true">
+    <rosparam command="load" file="$(arg config)" />
+    <param name="input_topic" value="$(arg input_topic)" />
+    <param name="odom_topic" value="$(arg odom_topic)" />
+    <param name="fallback_odom_topic" value="$(arg fallback_odom_topic)" />
+    <param name="ego_status_topic" value="$(arg ego_status_topic)" />
+    <param name="output_frame" value="base_link" />
+    <param name="enable_ground_filter" value="$(arg enable_ground_filter)" />
+    <param name="enable_wall_filter" value="$(arg enable_wall_filter)" />
+  </node>
+
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rear_lidar_rviz"
+        args="-d $(find rear_lidar_perception)/config/rear_lidar.rviz"
+        output="screen" />
+</launch>

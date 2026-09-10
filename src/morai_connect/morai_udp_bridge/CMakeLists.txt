@@ -6,6 +6,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   geometry_msgs
+  nav_msgs
+  tf
   morai_msgs
 )
 
@@ -19,8 +21,13 @@ catkin_install_python(PROGRAMS
   scripts/camera_right_publisher_node.py
   scripts/collision_data_publisher_node.py
   scripts/ego_vehicle_status_publisher_node.py
+  scripts/ego_ground_truth_state_publisher_node.py
+  scripts/object_info_publisher_node.py
   scripts/ego_ctrl_sender_node.py
   scripts/scenario_load_sender_node.py
+  scripts/scenario_episode_manager_node.py
+  scripts/morai_network_autoconnect_node.py
+  scripts/morai_simulator_watchdog_node.py
   scripts/cmd_publisher_example.py
   scripts/traffic_light_controller_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

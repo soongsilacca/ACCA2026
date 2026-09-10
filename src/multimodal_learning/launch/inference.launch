@@ -1,11 +1,35 @@
 <launch>
+  <arg name="launch_sensors" default="true" />
+  <arg name="use_sim_time" default="false" />
+  <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+  <arg name="ego_status_port" default="9011" />
+  <arg name="device_ip" default="" />
+  <arg name="velodyne_port" default="2368" />
+  <arg name="velodyne_frame" default="velodyne" />
+  <arg name="velodyne_rpm" default="900.0" />
+  <arg name="velodyne_min_range" default="0.4" />
+  <arg name="velodyne_max_range" default="130.0" />
+  <arg name="velodyne_pcap" default="" />
+  <arg name="camera_jpeg_quality" default="80" />
+  <arg name="controller_mode" default="mpc" />
+  <arg name="mpc_path_topic" default="/multimodal_learning/predicted_path" />
+  <arg name="mpc_target_velocity_topic" default="/target_velocity" />
+  <arg name="ai_path_timeout" default="1.5" />
+  <arg name="stop_full_brake_threshold" default="0.8" />
+  <arg name="stop_latch_threshold" default="0.5" />
+  <arg name="stop_release_drive_threshold" default="0.8" />
+  <arg name="stop_release_hold_sec" default="0.0" />
+  <arg name="mode_score_timeout" default="1.5" />
+  <arg name="stanley_curve_preview_m" default="10.0" />
+  <arg name="stanley_curve_min_speed_mps" default="1.0" />
+  <arg name="launch_controller" default="true" />
   <arg name="model_source_dir" default="/home/acca" />
   <arg name="checkpoint_path" default="/home/acca/latest.pt" />
   <arg name="path_marker_topic"
        default="/multimodal_learning/predicted_path_markers" />
   <arg name="path_spacing" default="0.1" />
   <arg name="path_length" default="80.0" />
-  <arg name="mpc_route_start_index" default="2" />
+  <arg name="mpc_route_start_index" default="0" />
   <arg name="lateral_residual_deadband_m" default="0.1" />
   <arg name="max_lateral_acceleration_mps2" default="3.0" />
   <arg name="max_curve_deceleration_mps2" default="2.0" />
@@ -13,22 +37,55 @@
   <arg name="mgeo_target_velocity_topic" default="/mgeo_target_velocity" />
   <arg name="use_cuda" default="true" />
   <arg name="planning_publish_hz" default="20.0" />
-  <arg name="model_inference_period" default="0.3" />
+  <arg name="model_inference_period" default="0.1" />
   <arg name="prediction_timeout" default="1.0" />
   <arg name="sync_slop" default="0.25" />
   <arg name="lidar_sync_tolerance" default="0.25" />
   <arg name="action_queue_size" default="5" />
   <arg name="action_switch_count" default="3" />
   <arg name="immediate_stop_probability" default="0.8" />
-  <arg name="immediate_avoid_probability" default="0.3" />
+  <arg name="stop_release_probability" default="0.7" />
+  <arg name="path_surface_width" default="2.8" />
+  <arg name="path_speed_color_max_kph" default="50.0" />
+  <arg name="immediate_avoid_probability" default="0.1" />
   <arg name="avoid_min_hold_sec" default="4.0" />
-  <arg name="enable_stop_action" default="false" />
+  <arg name="enable_stop_action" default="true" />
   <arg name="delta_only_mode" default="true" />
   <arg name="delta_min_speed_kph" default="30.0" />
-  <arg name="rviz" default="false" />
+  <arg name="rviz" default="true" />
   <arg name="rviz_config" default="$(find multimodal_learning)/config/inference.rviz" />
   <arg name="topics_config" default="$(find multimodal_learning)/config/topics.yaml" />
   <arg name="dataset_config" default="$(find multimodal_learning)/config/dataset.yaml" />
+  <group if="$(arg launch_sensors)">
+    <include file="$(find morai_udp_bridge)/launch/sensors.launch" />
+    <include file="$(find morai_udp_bridge)/launch/ego_network.launch">
+      <arg name="ego_status_port" value="$(arg ego_status_port)" />
+      <arg name="enable_ctrl_sender" value="true" />
+    </include>
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
+      <arg name="device_ip" value="$(arg device_ip)" />
+      <arg name="port" value="$(arg velodyne_port)" />
+      <arg name="frame_id" value="$(arg velodyne_frame)" />
+      <arg name="rpm" value="$(arg velodyne_rpm)" />
+      <arg name="min_range" value="$(arg velodyne_min_range)" />
+      <arg name="max_range" value="$(arg velodyne_max_range)" />
+      <arg name="pcap" value="$(arg velodyne_pcap)" />
+    </include>
+    <param name="/camera/front/image/compressed/jpeg_quality" value="$(arg camera_jpeg_quality)" type="int" />
+    <param name="/camera/left/image/compressed/jpeg_quality" value="$(arg camera_jpeg_quality)" type="int" />
+    <param name="/camera/right/image/compressed/jpeg_quality" value="$(arg camera_jpeg_quality)" type="int" />
+    <node pkg="image_transport" type="republish" name="morai_front_camera_compressor" args="raw in:=/camera/front/image_raw compressed out:=/camera/front/image" output="screen" />
+    <node pkg="image_transport" type="republish" name="morai_left_camera_compressor" args="raw in:=/camera/left/image_raw compressed out:=/camera/left/image" output="screen" />
+    <node pkg="image_transport" type="republish" name="morai_right_camera_compressor" args="raw in:=/camera/right/image_raw compressed out:=/camera/right/image" output="screen" />
+    <include file="$(find localization)/launch/localization_global.launch">
+      <arg name="use_sim_time" value="$(arg use_sim_time)" />
+    </include>
+    <include file="$(find mgeo_route_publisher)/launch/mgeo_route_publisher.launch">
+      <arg name="global_path_csv" value="$(arg global_path_csv)" />
+    </include>
+    <include file="$(find lidar_filtering)/launch/lidar_filtering.launch" />
+  </group>
+
   <node pkg="multimodal_learning" type="inference_node.py" name="multimodal_inference" output="screen">
     <param name="model_source_dir" value="$(arg model_source_dir)" />
     <param name="checkpoint_path" value="$(arg checkpoint_path)" />
@@ -58,6 +115,11 @@
     <param name="action_switch_count" value="$(arg action_switch_count)" />
     <param name="immediate_stop_probability"
            value="$(arg immediate_stop_probability)" />
+    <param name="stop_release_probability"
+           value="$(arg stop_release_probability)" />
+    <param name="path_surface_width" value="$(arg path_surface_width)" />
+    <param name="path_speed_color_max_kph"
+           value="$(arg path_speed_color_max_kph)" />
     <param name="immediate_avoid_probability"
            value="$(arg immediate_avoid_probability)" />
     <param name="avoid_min_hold_sec" value="$(arg avoid_min_hold_sec)" />
@@ -68,4 +130,24 @@
 
   <node if="$(arg rviz)" pkg="rviz" type="rviz" name="multimodal_inference_rviz"
         args="-d $(arg rviz_config)" output="screen" />
+
+  <group if="$(arg launch_controller)">
+    <include file="$(find control)/launch/control_mpc_with_weight.launch">
+      <arg name="controller_mode" value="$(arg controller_mode)" />
+      <arg name="path_topic" value="$(arg mpc_path_topic)" />
+      <arg name="path_start_index" value="$(arg mpc_route_start_index)" />
+      <arg name="ai_path_timeout" value="$(arg ai_path_timeout)" />
+      <arg name="target_velocity_topic" value="$(arg mpc_target_velocity_topic)" />
+      <arg name="mode_score_topic" value="/multimodal_learning/mode_scores" />
+      <arg name="stop_full_brake_threshold" value="$(arg stop_full_brake_threshold)" />
+      <arg name="stop_latch_threshold" value="$(arg stop_latch_threshold)" />
+      <arg name="stop_release_drive_threshold" value="$(arg stop_release_drive_threshold)" />
+      <arg name="stop_release_hold_sec" value="$(arg stop_release_hold_sec)" />
+      <arg name="mode_score_timeout" value="$(arg mode_score_timeout)" />
+      <arg name="stanley_max_lateral_acceleration_mps2" value="$(arg max_lateral_acceleration_mps2)" />
+      <arg name="stanley_curve_preview_m" value="$(arg stanley_curve_preview_m)" />
+      <arg name="stanley_curve_min_speed_mps" value="$(arg stanley_curve_min_speed_mps)" />
+      <arg name="launch_stack" value="false" />
+    </include>
+  </group>
 </launch>

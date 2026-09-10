@@ -51,10 +51,29 @@ class MPCController:
         # ==========================
 
         # 임포트해 온 클래스로 안전하게 인스턴스 객체 할당 완료
+        # Allow a launch file to tune Stanley without changing the shared YAML
+        # used by the MPC and global-path stacks.
+        self.stanley_h_gain = float(rospy.get_param(
+            '~stanley_heading_gain', self.stanley_h_gain
+        ))
+        self.stanley_c_gain = float(rospy.get_param(
+            '~stanley_cross_track_gain', self.stanley_c_gain
+        ))
+        self.stanley_kv = float(rospy.get_param(
+            '~stanley_softening_speed_mps', self.stanley_kv
+        ))
+        self.max_dsteer = float(rospy.get_param(
+            '~stanley_max_steer_rate_radps', self.max_dsteer
+        ))
+        if self.stanley_h_gain < 0.0 or self.stanley_c_gain < 0.0:
+            raise ValueError("Stanley gains cannot be negative")
+        if self.stanley_kv < 0.0 or self.max_dsteer <= 0.0:
+            raise ValueError("Stanley softening and steer rate must be valid")
+
         self.stanley_solver = stanley()
         self.stanley_state = state()
         self.stanley_solver.L = self.wheelbase  # 축거 데이터 동기화
-        self.stanley_solver.kv = self.stanley_kv  # yaml에서 불러온 저속 댐핑 안정화 게인 값 동기화
+        self.stanley_solver.kv = self.stanley_kv
         
         self.odom_received = False ##\\##
 
@@ -71,7 +90,7 @@ class MPCController:
         ).strip().lower()
         if self.controller_mode not in ('mpc', 'stanley'):
             raise ValueError("controller_mode must be 'mpc' or 'stanley'")
-        self.path_topic = rospy.get_param('~path_topic', '/global_path')
+        self.path_topic = rospy.get_param('~path_topic', '/local_route')
         self.path_start_index = int(rospy.get_param('~path_start_index', 0))
         if self.path_start_index < 0:
             raise ValueError("path_start_index cannot be negative")
@@ -241,7 +260,7 @@ class MPCController:
         self.odom_event.set()
 
     def path_callback(self, msg):
-        if self.path_topic != '/global_path':
+        if self.path_topic != '/local_route':
             path_stamp = msg.header.stamp.to_nsec()
             if path_stamp == self.last_ai_path_stamp:
                 self.last_path_received = rospy.Time.now()
@@ -276,7 +295,7 @@ class MPCController:
             self._initialized_search = False
         else:
             self.global_path = [(pose.pose.position.x, pose.pose.position.y) for pose in path_poses]
-            if self.path_topic != '/global_path':
+            if self.path_topic != '/local_route':
                 self.closest_idx = 0
                 self._initialized_search = False
         if len(self.global_path) < 2:
@@ -284,7 +303,7 @@ class MPCController:
         self.cx = np.array([pt[0] for pt in self.global_path])
         self.cy = np.array([pt[1] for pt in self.global_path])
 
-        if self.path_topic != '/global_path':
+        if self.path_topic != '/local_route':
             path_yaws = []
             for pose in path_poses:
                 orientation = pose.pose.orientation
