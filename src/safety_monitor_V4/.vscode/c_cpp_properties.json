@@ -1,0 +1,28 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/opt/ros/noetic/include/**",
+        "/home/acca/acca_ws/devel/include/**",
+        "/home/acca/acca_ws/src/TTC/include/**",
+        "/home/acca/acca_ws/src/fast_gicp/include/**",
+        "/home/acca/acca_ws/src/hdl_global_localization/include/**",
+        "/home/acca/acca_ws/src/hdl_localization/include/**",
+        "/home/acca/acca_ws/src/lidar_filtering/include/**",
+        "/home/acca/acca_ws/src/ndt_omp/include/**",
+        "/home/acca/acca_ws/src/sensor_tf_broadcaster/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

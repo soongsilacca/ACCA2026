@@ -75,12 +75,21 @@
     <param name="npc_yaw_rate_ema" value="0.5" />
     <param name="npc_max_yaw_rate_deg_sec" value="55.0" />
     <param name="npc_turn_min_speed_mps" value="0.5" />
+    <!-- Roundabout entrance: ignore speculative far-future crossings while
+         retaining braking for an NPC that conflicts within 0.8 seconds. -->
+    <param name="roundabout_approach_vehicle_forecast_sec" value="0.8" />
+    <rosparam param="roundabout_approach_bounds">[-110.0, -75.0, 300.0, 340.0]</rosparam>
     <param name="static_avoid_min_distance_m" value="3.0" />
     <param name="static_avoid_max_distance_m" value="60.0" />
     <param name="static_avoid_lateral_tolerance_m" value="4.0" />
     <param name="static_avoid_clearance_m" value="1.5" />
     <param name="static_avoid_max_lane_factor" value="2.0" />
     <param name="static_avoid_speed_mps" value="5.0" />
+    <!-- CSV rows 1250..1800 delimit the post-left-turn/roundabout approach.
+         PDM internally resamples the route at 10 points/m, so use the
+         corresponding cumulative-distance indices (611.9m..885.1m). -->
+    <param name="guardrail_right_only_start_index" value="6119" />
+    <param name="guardrail_right_only_end_index" value="8851" />
     <param name="pedestrian_hazard_full_stop" value="true" />
     <param name="pedestrian_caution_horizon_sec" value="6.0" />
     <param name="pedestrian_caution_clearance_m" value="2.5" />

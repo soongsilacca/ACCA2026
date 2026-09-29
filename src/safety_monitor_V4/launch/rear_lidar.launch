@@ -1,0 +1,93 @@
+<launch>
+  <!-- 6.1.1 후방 LiDAR 인지 (rear_lidar_perception_node)
+       MORAI rear LiDAR network setting:
+         Host Sensor Port (simulator source): 2369
+         Destination IP/Port (this PC):       127.0.0.1:2368
+       The ROS Velodyne driver binds only the destination port (2368). -->
+  <arg name="device_ip" default="" />
+  <arg name="destination_port" default="2368" />
+  <arg name="rpm" default="900.0" />
+  <arg name="min_range" default="0.4" />
+  <arg name="max_range" default="130.0" />
+  <arg name="pcap" default="" />
+  <arg name="launch_driver" default="true" />
+  <arg name="input_topic" default="/rear_lidar/points_raw" />
+
+  <!-- base_link -> rear_lidar 장착 위치. TF와 노드 내부 변환에 같이 쓴다. -->
+  <arg name="sensor_x" default="-0.82" />
+  <arg name="sensor_y" default="0.0" />
+  <arg name="sensor_z" default="0.22" />
+  <arg name="sensor_roll" default="0.0" />
+  <arg name="sensor_pitch" default="0.0" />
+  <arg name="sensor_yaw" default="0.0" />
+
+  <!-- 자차 이동 정보는 /localization/kinematic_state 하나만 사용한다.
+       fallback odometry와 EgoVehicleStatus 기반 pose는 비활성이다. -->
+  <arg name="launch_ego_odometry" default="false" />
+  <arg name="ego_status_port" default="9009" />
+  <arg name="odom_topic" default="/localization/kinematic_state" />
+  <arg name="fallback_odom_topic" default="" />
+  <arg name="ego_status_topic" default="" />
+
+  <!-- perception 이 죽어도 launch 전체를 내리지 않는다.
+       충돌 감시 발행이 끊기면 gate 가 제동한다. -->
+  <arg name="required" default="false" />
+  <arg name="rviz" default="false" />
+  <arg name="rviz_config" default="$(find safety_monitor)/config/rviz/rear_lidar.rviz" />
+  <arg name="enable_ground_filter" default="true" />
+  <arg name="enable_wall_filter" default="true" />
+  <arg name="publish_debug_clouds" default="false" />
+  <arg name="publish_report_geometry" default="false" />
+  <arg name="config" default="$(find safety_monitor)/config/rear_lidar.yaml" />
+
+  <node pkg="tf2_ros" type="static_transform_publisher" name="rear_lidar_static_tf"
+        args="$(arg sensor_x) $(arg sensor_y) $(arg sensor_z) $(arg sensor_yaw) $(arg sensor_pitch) $(arg sensor_roll) base_link rear_lidar" />
+
+  <group if="$(arg launch_driver)" ns="rear_lidar_driver">
+    <remap from="velodyne_packets" to="/rear_lidar/packets" />
+    <remap from="velodyne_points" to="$(arg input_topic)" />
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
+      <arg name="device_ip" value="$(arg device_ip)" />
+      <arg name="port" value="$(arg destination_port)" />
+      <arg name="frame_id" value="rear_lidar" />
+      <arg name="manager" value="rear_lidar_nodelet_manager" />
+      <arg name="min_range" value="$(arg min_range)" />
+      <arg name="max_range" value="$(arg max_range)" />
+      <arg name="rpm" value="$(arg rpm)" />
+      <arg name="pcap" value="$(arg pcap)" />
+    </include>
+  </group>
+
+  <node if="$(arg launch_ego_odometry)" pkg="morai_udp_bridge"
+        type="ego_ground_truth_state_publisher_node.py"
+        name="rear_lidar_ego_odometry" output="screen">
+    <param name="ip" value="127.0.0.1" />
+    <param name="port" value="$(arg ego_status_port)" />
+    <param name="gt_topic" value="$(arg odom_topic)" />
+    <param name="frame_id" value="map" />
+    <param name="child_frame_id" value="base_link" />
+  </node>
+
+  <node pkg="safety_monitor" type="rear_lidar_perception_node" name="rear_lidar_perception"
+        output="screen" required="$(arg required)">
+    <rosparam command="load" file="$(arg config)" />
+    <param name="input_topic" value="$(arg input_topic)" />
+    <param name="odom_topic" value="$(arg odom_topic)" />
+    <param name="fallback_odom_topic" value="$(arg fallback_odom_topic)" />
+    <param name="ego_status_topic" value="$(arg ego_status_topic)" />
+    <param name="output_frame" value="base_link" />
+    <param name="sensor_x" value="$(arg sensor_x)" />
+    <param name="sensor_y" value="$(arg sensor_y)" />
+    <param name="sensor_z" value="$(arg sensor_z)" />
+    <param name="sensor_roll" value="$(arg sensor_roll)" />
+    <param name="sensor_pitch" value="$(arg sensor_pitch)" />
+    <param name="sensor_yaw" value="$(arg sensor_yaw)" />
+    <param name="enable_ground_filter" value="$(arg enable_ground_filter)" />
+    <param name="enable_wall_filter" value="$(arg enable_wall_filter)" />
+    <param name="publish_debug_clouds" value="$(arg publish_debug_clouds)" />
+    <param name="publish_report_geometry" value="$(arg publish_report_geometry)" />
+  </node>
+
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rear_lidar_rviz"
+        args="-d $(arg rviz_config)" output="screen" />
+</launch>

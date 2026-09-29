@@ -57,8 +57,10 @@ ALL_STATIC_OBSTACLE_DATA_IDS = [
 ]
 
 # Assets with predictable, road-obstacle-sized native dimensions. Large
-# walls/fences/sign structures are deliberately excluded: choosing all object
-# IDs with one common scale produced implausibly huge obstacles.
+# walls/fences/sign structures, buses and trucks are deliberately excluded.
+# Passenger cars, SUVs, compact cars and vans remain valid static obstacles.
+# Choosing all object IDs with one common scale previously produced
+# implausibly huge obstacles.
 COMPACT_STATIC_OBSTACLE_DATA_IDS = [
     40100002,  # WoodBox
     40100003,  # Box
@@ -85,14 +87,7 @@ COMPACT_STATIC_OBSTACLE_DATA_IDS = [
     40100049,  # PE barricade
     40100065,  # Debris / box
     40100067,  # Safety signal
-    40100086,  # NCAP vehicle target
     40100092,  # Empty box
-]
-
-# Randomly placed obstacles should not include vehicles to prevent road blocking issues.
-NON_VEHICLE_OBSTACLE_DATA_IDS = [
-    40100002, 40100003, 40100004, 40100005, 40100006, 40100007,
-    40100027, 40100033, 40100047, 40100049, 40100065, 40100067, 40100092
 ]
 
 # Curated, non-intersection points on the authored global route. z is sampled
@@ -412,7 +407,7 @@ def _route_zones(global_path_csv, fractions):
 
 def _remove_static_blocking_npc_routes(scenario, static_objects,
                                        clearance_m=3.0):
-    """Keep all NPC traffic and remove static objects intersecting its routes."""
+    """Reject static objects intersecting NPC or waypoint-actor routes."""
     link_file = os.path.join(os.path.dirname(os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
         'map_viz', 'scripts', 'link_set.json')
@@ -455,6 +450,40 @@ def _remove_static_blocking_npc_routes(scenario, static_objects,
             point for link_id in route_ids
             for point in by_id[link_id].get('points', []))
 
+    # MORAI stores PedPath/ObstaclePath waypoints in Unity coordinates:
+    # scenario map x/y = -waypoint x/z. Checking only the waypoint vertices is
+    # insufficient because a crossing actor can hit a static object midway
+    # along a long segment, so preserve the complete line segments.
+    moving_actor_segments = []
+    for path in scenario.get('waypointDataList', []):
+        name = str(path.get('pathName', ''))
+        if not (name.startswith('PedPath') or
+                name.startswith('ObstaclePath')):
+            continue
+        points = []
+        for waypoint in path.get('waypointData', []):
+            pos = waypoint.get('pos', {})
+            try:
+                points.append((-float(pos['x']), -float(pos['z'])))
+            except (KeyError, TypeError, ValueError):
+                continue
+        if len(points) == 1:
+            moving_actor_segments.append((points[0], points[0]))
+        else:
+            moving_actor_segments.extend(zip(points[:-1], points[1:]))
+
+    def point_segment_distance_sq(px, py, start, end):
+        ax, ay = start
+        bx, by = end
+        dx, dy = bx-ax, by-ay
+        length_sq = dx*dx + dy*dy
+        if length_sq <= 1.0e-9:
+            return (px-ax)**2 + (py-ay)**2
+        ratio = max(0.0, min(1.0,
+            ((px-ax)*dx + (py-ay)*dy) / length_sq))
+        qx, qy = ax + ratio*dx, ay + ratio*dy
+        return (px-qx)**2 + (py-qy)**2
+
     clearance_sq = clearance_m ** 2
     removed_ids = []
     for obj in static_objects:
@@ -465,6 +494,9 @@ def _remove_static_blocking_npc_routes(scenario, static_objects,
         blocked = any(
             (float(point[0]) - ox) ** 2 + (float(point[1]) - oy) ** 2
             <= clearance_sq for point in npc_route_points)
+        blocked = blocked or any(
+            point_segment_distance_sq(ox, oy, start, end) <= clearance_sq
+            for start, end in moving_actor_segments)
         if blocked:
             removed_ids.append(int(obj.get('UNIQUEID', -1)))
     if removed_ids:
@@ -501,6 +533,18 @@ def apply_obstacle_only_rules(scenario, global_path_csv):
     objects = new_scen.setdefault('objectList', [])
     object_template = deepcopy(objects[0]) if objects else None
     added_static_objects = []
+    # Draw without replacement so one episode contains visibly different
+    # obstacle models. The pool includes passenger-sized parked vehicles but
+    # intentionally contains no truck, bus or oversized structure assets.
+    static_model_pool = list(COMPACT_STATIC_OBSTACLE_DATA_IDS)
+    random.shuffle(static_model_pool)
+
+    def draw_static_model():
+        if not static_model_pool:
+            static_model_pool.extend(COMPACT_STATIC_OBSTACLE_DATA_IDS)
+            random.shuffle(static_model_pool)
+        return static_model_pool.pop()
+
     authored_waypoints = {
         str(path.get('pathName', '')): path.get('waypointData', [])
         for path in new_scen.get('waypointDataList', [])}
@@ -549,13 +593,23 @@ def apply_obstacle_only_rules(scenario, global_path_csv):
         y = base_y + radius * math.sin(angle)
         z = float(pos['z'])
 
-        obj['DataID'] = random.choice(COMPACT_STATIC_OBSTACLE_DATA_IDS)
+        obj['DataID'] = draw_static_model()
         obj['scale'] = {
             "x": 1.0, "y": 1.0, "z": 1.0,
             "_x": "1.000", "_y": "1.000", "_z": "1.000"}
         obj['pos'] = {
             "x": x, "y": y, "z": z,
             "_x": f"{x:.3f}", "_y": f"{y:.3f}", "_z": f"{z:.3f}"}
+        obj['initPos'] = deepcopy(obj['pos'])
+        obj['initRot'] = deepcopy(obj.get('rot', {}))
+        obj['isWaypointMode'] = False
+        obj['moveSpeed'] = 0.0
+        obj['activeDistance'] = 999.0
+        obj['waypointEventList'] = []
+        new_scen['waypointDataList'] = [
+            path for path in new_scen.get('waypointDataList', [])
+            if not (path.get('pathName') == 'ObstaclePath - %s' % old_uid
+                    and not path.get('waypointData'))]
 
         if old_uid is not None:
             obj['UNIQUEID'] = old_uid
@@ -566,8 +620,24 @@ def apply_obstacle_only_rules(scenario, global_path_csv):
     # coordinates, headings and heights still come from the active route.
     static_zones = _route_zones(global_path_csv, [
         (0.10, 0.18), (0.32, 0.42), (0.58, 0.68)])
-    dynamic_zones = _route_zones(global_path_csv, [
-        (0.20, 0.29), (0.45, 0.55), (0.70, 0.80)])
+    # Dynamic actors must cross the ego route, but must not be born on an NPC
+    # traffic route. Re-sample within each requested route band until the
+    # centre has vehicle-width clearance from every configured NPC route.
+    dynamic_zones = []
+    for dynamic_band in ((0.20, 0.29), (0.45, 0.55), (0.70, 0.80)):
+        for _attempt in range(120):
+            candidate = _route_zones(global_path_csv, [dynamic_band])[0]
+            probe = {
+                'UNIQUEID': -999999,
+                'pos': {'x': candidate[0], 'y': candidate[1]}}
+            if not _remove_static_blocking_npc_routes(
+                    deepcopy(new_scen), [probe], clearance_m=4.0):
+                dynamic_zones.append(candidate)
+                break
+        else:
+            raise RuntimeError(
+                'No dynamic-obstacle zone clear of NPC routes in %s' %
+                (dynamic_band,))
     shaded_zone = _route_zones(global_path_csv, [(0.875, 0.895)])[0]
 
     shaded_is_dynamic = random.random() < 0.50
@@ -594,7 +664,7 @@ def apply_obstacle_only_rules(scenario, global_path_csv):
         if object_template is None:
             continue
         obstacle = deepcopy(object_template)
-        obstacle['DataID'] = random.choice(NON_VEHICLE_OBSTACLE_DATA_IDS)
+        obstacle['DataID'] = draw_static_model()
         obstacle['UNIQUEID'] = next_uid
         obstacle['pos'] = obstacle_pos
         obstacle['rot'] = {
@@ -668,8 +738,9 @@ def apply_obstacle_only_rules(scenario, global_path_csv):
 
         yaw_text = f"{math.degrees(math.atan2(p2['y'] - p1['y'], p2['x'] - p1['x'])):.3f}"
 
-        # Match authored fixed pedestrian: activeDistance must be high enough
-        # so it starts moving before ego comes to a full stop (deadlock).
+        # The authored moving pedestrian activates at 15 m. Random moving
+        # events get only 3.5 m more reaction room; the former 50 m setting
+        # made them start unrealistically early, long before ego arrived.
         if event_type == 'stationary':
             shoulder = random.uniform(2.0, 4.0)
             p1 = {
@@ -687,10 +758,10 @@ def apply_obstacle_only_rules(scenario, global_path_csv):
             active_distance = 15.0
         elif event_type == 'sudden_entry':
             speed = random.uniform(8.0, 11.0)
-            active_distance = 50.0
+            active_distance = 18.5
         else:
             speed = random.uniform(8.0, 11.0)
-            active_distance = 50.0
+            active_distance = 18.5
 
         # Start from the scenario's known-good pedestrian entry so MORAI also
         # receives its animation/state metadata.  A hand-built partial actor
@@ -734,11 +805,40 @@ def apply_obstacle_only_rules(scenario, global_path_csv):
     if removed_static:
         print("[Domain Randomizer] Removed static obstacles blocking NPC "
               "routes: %s" % sorted(removed_static))
+    # Restore rejected additions by searching route sections, keeping the
+    # chosen model and UID. Never silently reduce the requested count.
+    for index, obstacle in enumerate(added_static_objects):
+        if obstacle['UNIQUEID'] not in removed_static:
+            continue
+        shaded = not shaded_is_dynamic and index == len(added_static_objects)-1
+        original_band = [(0.10, 0.18), (0.32, 0.42), (0.58, 0.68)][min(index, 2)]
+        for attempt in range(90):
+            band = (0.875, 0.895) if shaded else (
+                original_band if attempt < 30 else (0.10, 0.80))
+            x, y, z, yaw = _route_zones(global_path_csv, [band])[0]
+            lateral = random.uniform(-1.0, 1.0)
+            angle = math.radians(yaw)
+            x -= lateral * math.sin(angle)
+            y += lateral * math.cos(angle)
+            if any(math.hypot(x-other['pos']['x'], y-other['pos']['y']) < 8.0
+                   for other in new_scen['objectList']):
+                continue
+            obstacle['pos'] = dict(x=x, y=y, z=z,
+                                   _x=f'{x:.3f}', _y=f'{y:.3f}', _z=f'{z:.3f}')
+            obstacle['initPos'] = deepcopy(obstacle['pos'])
+            obstacle['rot'] = dict(roll='0.000', pitch='0.000', yaw=f'{yaw:.3f}')
+            obstacle['initRot'] = deepcopy(obstacle['rot'])
+            new_scen['objectList'].append(obstacle)
+            if not _remove_static_blocking_npc_routes(new_scen, [obstacle], clearance_m=3.0):
+                break
+        else:
+            raise RuntimeError('No safe static placement for UID %s after 90 attempts%s' % (
+                obstacle['UNIQUEID'], ' in shaded section' if shaded else ''))
     return new_scen
 
 
 def generate_randomized_scenario(base_json_path, output_json_path,
-                                 global_path_csv=None):
+                                 global_path_csv=None, seed=None):
     with open(base_json_path, 'r', encoding='utf-8') as f:
         scenario = json.load(f)
 
@@ -749,7 +849,16 @@ def generate_randomized_scenario(base_json_path, output_json_path,
     # Only append the global-path-based randomized actors. The legacy
     # apply_zone_rules() rewrote NPC routes and added overlapping obstacles,
     # so it must not participate in automated teacher-data episodes.
-    new_scen = apply_obstacle_only_rules(scenario, global_path_csv)
+    # Evaluation runs need identical actors for every model. Preserve the
+    # process-wide RNG state so deterministic generation does not change the
+    # legacy non-deterministic sequence used by ordinary data collection.
+    random_state = random.getstate()
+    if seed is not None:
+        random.seed(int(seed))
+    try:
+        new_scen = apply_obstacle_only_rules(scenario, global_path_csv)
+    finally:
+        random.setstate(random_state)
 
     output_dir = os.path.dirname(output_json_path) or '.'
     os.makedirs(output_dir, exist_ok=True)

@@ -4,7 +4,7 @@
   <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" />
 
   <!-- VLP-16 options -->
-  <arg name="device_ip" default="" />
+  <arg name="device_ip" default="127.0.0.1" />
   <arg name="velodyne_port" default="2368" />
   <arg name="frame_id" default="velodyne" />
   <arg name="min_range" default="0.4" />

@@ -1,0 +1,10 @@
+# E-STOP gate (estop_gate_node)
+cmd_in: /ctrl_cmd_raw       # 제어기 출력을 이 토픽으로 remap
+cmd_out: /ctrl_cmd          # MORAI가 받는 토픽
+require_cmd: false          # TCP가 /ctrl_cmd에 직접 발행; 최종 UDP sender에서 E-STOP 적용
+rate: 50.0
+brake: 1.0
+# 입력 두절 임계. 충돌 감시는 LiDAR 프레임(약 7.3 Hz)마다 발행하므로 약 3.6 프레임
+collision_timeout: 1.5
+sensor_timeout: 0.2
+cmd_timeout: 0.2            # TODO: 제어기 발행 주기 확인

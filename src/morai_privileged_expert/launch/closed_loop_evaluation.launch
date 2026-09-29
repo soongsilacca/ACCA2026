@@ -1,0 +1,32 @@
+<launch>
+  <arg name="model_name" default="TCP" />
+  <arg name="seed" default="-1" />
+  <arg name="global_path_csv"
+       default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+  <arg name="output_directory"
+       default="$(env HOME)/acca_ws/closed_loop_results" />
+  <arg name="behavior_topic"
+       default="/multimodal_learning/runtime_action" />
+  <arg name="latency_topic"
+       default="/multimodal_learning/inference_latency_ms" />
+  <arg name="odom_topic" default="/localization/kinematic_state" />
+
+  <node pkg="morai_privileged_expert"
+        type="closed_loop_evaluator_node.py"
+        name="closed_loop_evaluator" output="screen" required="true">
+    <param name="model_name" value="$(arg model_name)" />
+    <param name="seed" value="$(arg seed)" />
+    <param name="global_path_csv" value="$(arg global_path_csv)" />
+    <param name="output_directory" value="$(arg output_directory)" />
+    <param name="behavior_topic" value="$(arg behavior_topic)" />
+    <param name="latency_topic" value="$(arg latency_topic)" />
+    <param name="odom_topic" value="$(arg odom_topic)" />
+    <param name="sample_hz" value="10.0" />
+    <param name="lane_departure_cte_m" value="2.0" />
+    <param name="obstacle_event_range_m" value="50.0" />
+    <param name="obstacle_path_width_m" value="4.0" />
+    <param name="signal_event_range_m" value="80.0" />
+    <param name="signal_stop_speed_mps" value="0.3" />
+    <param name="signal_restart_speed_mps" value="1.0" />
+  </node>
+</launch>

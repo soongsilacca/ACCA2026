@@ -1,0 +1,35 @@
+<launch>
+  <!-- Reproducible closed-loop benchmark using the proven pre-final TCP. -->
+  <arg name="checkpoint_path"
+       default="$(find multimodal_learning)/model_artifacts/tcp_full/best_tcp_teacher_full_policy_v6_ep28.pt" />
+  <arg name="scenario_seed_base" default="2026" />
+  <arg name="output_directory"
+       default="$(env HOME)/acca_ws/closed_loop_results" />
+  <arg name="auto_record" default="true" />
+  <arg name="rviz" default="true" />
+  <!-- The operator configures/connects MORAI Network Settings manually. -->
+  <arg name="network_autoconnect" default="false" />
+  <arg name="load_network" default="false" />
+  <arg name="simulator_watchdog" default="false" />
+
+  <include file="$(find multimodal_learning)/launch/tcp_inference.launch">
+    <arg name="checkpoint_path" value="$(arg checkpoint_path)" />
+    <arg name="rviz" value="$(arg rviz)" />
+  </include>
+
+  <include file="$(find morai_privileged_expert)/launch/closed_loop_evaluation.launch">
+    <arg name="model_name" value="TCP_ep28" />
+    <arg name="seed" value="$(arg scenario_seed_base)" />
+    <arg name="output_directory" value="$(arg output_directory)" />
+  </include>
+
+  <include file="$(find morai_privileged_expert)/launch/auto_episode.launch">
+    <arg name="launch_expert" value="false" />
+    <arg name="scenario_seed_base" value="$(arg scenario_seed_base)" />
+    <arg name="auto_record" value="$(arg auto_record)" />
+    <arg name="rviz" value="false" />
+    <arg name="network_autoconnect" value="$(arg network_autoconnect)" />
+    <arg name="load_network" value="$(arg load_network)" />
+    <arg name="simulator_watchdog" value="$(arg simulator_watchdog)" />
+  </include>
+</launch>

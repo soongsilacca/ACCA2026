@@ -29,6 +29,9 @@
               /privileged_expert/controlled_traffic_light
               /ctrl_cmd
               /tracking_info
+              /morai/episode_status
+              /multimodal_learning/runtime_action
+              /multimodal_learning/inference_latency_ms
               /morai/collision_data
               /imu
               /gps

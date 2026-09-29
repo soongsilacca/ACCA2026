@@ -21,7 +21,8 @@ map_radius: 60.0
 max_map_tokens: 64
 link_sample_spacing: 3.0
 
-# MPC target speed: MGeo link max_speed plus global-path curvature limit.
+# MPC target speed policy. Numeric MGeo link max_speed values are not used:
+# regular road uses 60 km/h and highway-class links use 100 km/h.
 mgeo_target_velocity_topic: /mgeo_target_velocity
 speed_cap_kph: 100.0
 # Used only when a link has no valid max_speed.

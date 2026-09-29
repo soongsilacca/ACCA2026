@@ -16,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 import rospy
+import rosbag
 from morai_msgs.msg import CollisionData, CtrlCmd, ObjectStatusList
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String
@@ -68,6 +69,8 @@ DEFAULT_RECORD_TOPICS = [
     "/Object_topic", "/SetTrafficLight",
     "/privileged_expert/controlled_traffic_light",
     "/ctrl_cmd", "/tracking_info", "/morai/collision_data",
+    "/morai/episode_status", "/multimodal_learning/runtime_action",
+    "/multimodal_learning/inference_latency_ms",
     "/imu", "/gps", "/tf", "/tf_static",
 ]
 
@@ -113,6 +116,10 @@ class ScenarioEpisodeManager:
             rospy.get_param("~collision_actor_distance_m", 10.0))
         self.spawn_collision_ignore_radius = float(
             rospy.get_param("~spawn_collision_ignore_radius_m", 5.0))
+        self.keep_collision_bag = bool(
+            rospy.get_param("~keep_collision_bag", True))
+        self.collision_trim_tail_sec = max(0.0, float(
+            rospy.get_param("~collision_trim_tail_sec", 20.0)))
         self.episode_timeout_sec = float(
             rospy.get_param("~episode_timeout_sec", 900.0))
         self.startup_load_delay_sec = float(
@@ -134,6 +141,9 @@ class ScenarioEpisodeManager:
             rospy.get_param("~bag_split_size_mb", 4096))
         self.bag_buffer_mb = int(rospy.get_param("~bag_buffer_mb", 2048))
         self.minimum_free_gb = float(rospy.get_param("~minimum_free_gb", 5.0))
+        self.scenario_seed_base = int(rospy.get_param(
+            "~scenario_seed_base", -1))
+        self.active_scenario_seed = -1
         self.impact_fallback_enabled = bool(
             rospy.get_param("~impact_fallback_enabled", True))
         self.impact_pre_speed = float(
@@ -180,7 +190,8 @@ class ScenarioEpisodeManager:
                                           queue_size=1, latch=True)
         self.recovery_pub = rospy.Publisher(
             "/morai/simulator_recovery_request", String, queue_size=1)
-        rospy.Subscriber("/teacher/ground_truth_state", Odometry,
+        rospy.Subscriber(rospy.get_param(
+            "~ground_truth_topic", "/teacher/ground_truth_state"), Odometry,
                          self._odom, queue_size=1)
         rospy.Subscriber("/morai/collision_data", CollisionData,
                          self._collision, queue_size=1)
@@ -395,7 +406,59 @@ class ScenarioEpisodeManager:
         rospy.loginfo("EPISODE %d RECORD START: %s*.bag",
                       self.episode, self.bag_prefix)
 
-    def _stop_recording(self, keep):
+    def _trim_bag_after(self, files, cutoff_time):
+        """Remove messages at/after cutoff while preserving earlier splits.
+
+        Complete split files before the cutoff are left untouched, files
+        entirely after it are removed, and only the one boundary file is
+        rewritten. This avoids filtering a complete multi-gigabyte episode.
+        """
+        removed = 0
+        rewritten = 0
+        for path in sorted(files):
+            if path.suffix != ".bag" or not path.exists():
+                continue
+            temporary = path.with_name(path.name + ".trim")
+            try:
+                with rosbag.Bag(str(path), "r") as source:
+                    start_time = source.get_start_time()
+                    end_time = source.get_end_time()
+                    if start_time >= cutoff_time:
+                        path.unlink()
+                        removed += 1
+                        continue
+                    if end_time < cutoff_time:
+                        continue
+                    count = 0
+                    with rosbag.Bag(
+                            str(temporary), "w",
+                            compression=rosbag.Compression.LZ4) as output:
+                        for topic, message, stamp, connection_header in \
+                                source.read_messages(
+                                    end_time=rospy.Time.from_sec(cutoff_time),
+                                    return_connection_header=True):
+                            # rosbag treats end_time as inclusive. The
+                            # collision tail starts exactly at cutoff_time.
+                            if stamp.to_sec() >= cutoff_time:
+                                break
+                            output.write(topic, message, stamp,
+                                         connection_header=connection_header)
+                            count += 1
+                if count:
+                    os.replace(str(temporary), str(path))
+                    rewritten += 1
+                else:
+                    temporary.unlink(missing_ok=True)
+                    path.unlink(missing_ok=True)
+                    removed += 1
+            except Exception as exc:
+                temporary.unlink(missing_ok=True)
+                # Never destroy the original bag when trimming itself fails.
+                rospy.logerr("Could not trim collision tail from %s: %s; "
+                             "preserving original file", path, exc)
+        return removed, rewritten
+
+    def _stop_recording(self, keep, trim_cutoff_time=None):
         process = self.recorder
         self.recorder = None
         if process is not None and process.poll() is None:
@@ -409,8 +472,18 @@ class ScenarioEpisodeManager:
                 pass
         files = self._bag_files()
         if keep:
-            rospy.loginfo("EPISODE %d RECORD SAVED: %d file(s)",
-                          self.episode, len(files))
+            if trim_cutoff_time is not None:
+                removed, rewritten = self._trim_bag_after(
+                    files, trim_cutoff_time)
+                files = self._bag_files()
+                rospy.logwarn(
+                    "EPISODE %d COLLISION RECORD SAVED with last %.1fs cut: "
+                    "%d file(s), %d removed, %d boundary rewritten",
+                    self.episode, self.collision_trim_tail_sec, len(files),
+                    removed, rewritten)
+            else:
+                rospy.loginfo("EPISODE %d RECORD SAVED: %d file(s)",
+                              self.episode, len(files))
         else:
             removed = 0
             for path in files:
@@ -423,7 +496,8 @@ class ScenarioEpisodeManager:
                           self.episode, removed)
         self.bag_prefix = None
 
-    def _finish_episode(self, reason, success):
+    def _finish_episode(self, reason, success, preserve_failed_bag=False,
+                        trim_cutoff_time=None):
         with self.transition_lock:
             if self.loading or self.transition_pending:
                 return
@@ -431,7 +505,9 @@ class ScenarioEpisodeManager:
             self.loading = True
             rospy.loginfo("EPISODE %d %s: %s", self.episode,
                           "SUCCESS" if success else "FAILED", reason)
-            self._stop_recording(keep=success)
+            self._stop_recording(
+                keep=(success or preserve_failed_bag),
+                trim_cutoff_time=trim_cutoff_time)
             self.loading = False
             if not rospy.is_shutdown() and self.simulator_available:
                 self._reload(reason)
@@ -456,8 +532,13 @@ class ScenarioEpisodeManager:
                 # Rewrite the pre-registered stable file rather than inventing
                 # a runtime filename that may not exist in that index.
                 active_scene = Path(self.output_scene)
+                scenario_seed = (self.scenario_seed_base + next_episode
+                                 if self.scenario_seed_base >= 0 else None)
                 generate_randomized_scenario(
-                    self.input_scene, str(active_scene), self.global_path_csv)
+                    self.input_scene, str(active_scene), self.global_path_csv,
+                    seed=scenario_seed)
+                self.active_scenario_seed = (-1 if scenario_seed is None
+                                             else scenario_seed)
                 self.spawn_points_xy = self._spawn_point_positions(
                     str(active_scene))
                 rospy.loginfo("Loaded %d NPC spawn points; collisions within "
@@ -484,8 +565,9 @@ class ScenarioEpisodeManager:
                 self.active_output_scene = str(active_scene)
                 self.sender.send(self._packet(str(active_scene)))
                 self.collision_armed = False
-                message = "EPISODE %d LOAD_SENT reason=%s scenario=%s" % (
-                    next_episode, reason, active_scene.stem)
+                message = "EPISODE %d LOAD_SENT reason=%s scenario=%s seed=%d" % (
+                    next_episode, reason, active_scene.stem,
+                    self.active_scenario_seed)
                 self.status_pub.publish(String(message))
                 rospy.loginfo(message)
                 # Verify every load, including startup and a closed-loop route
@@ -526,8 +608,9 @@ class ScenarioEpisodeManager:
         self.last_fast_motion = rospy.Time(0)
         self.impact_stop_since = None
         self.episode_start = rospy.Time.now()
-        message = "EPISODE %d LOADED scenario=%s" % (
-            self.episode, Path(self.active_output_scene).stem)
+        message = "EPISODE %d LOADED scenario=%s seed=%d" % (
+            self.episode, Path(self.active_output_scene).stem,
+            self.active_scenario_seed)
         self.status_pub.publish(String(message))
         rospy.loginfo("Scenario reload ACK: GT/ObjectInfo match generated scene")
         rospy.loginfo(message)
@@ -728,7 +811,15 @@ class ScenarioEpisodeManager:
                 not self.loading and
                 (rospy.Time.now() - self.episode_start).to_sec() >= self.reload_settle_sec):
             rospy.logerr("Collision detected: %s", details)
-            self._finish_episode("collision", success=False)
+            collision_time = rospy.Time.now().to_sec()
+            collision_types = {int(item.objType) for item in contacts}
+            collision_kind = ("pedestrian" if 0 in collision_types else
+                              "vehicle" if 1 in collision_types else "static")
+            self._finish_episode(
+                "collision_%s" % collision_kind, success=False,
+                preserve_failed_bag=self.keep_collision_bag,
+                trim_cutoff_time=(collision_time - self.collision_trim_tail_sec
+                                  if self.keep_collision_bag else None))
 
     def _watchdog(self, _event):
         if self.loading or self.transition_pending or self.episode == 0:

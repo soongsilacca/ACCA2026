@@ -11,7 +11,7 @@ from geometry_msgs.msg import Vector3
 from lib.network.UDP import Receiver
 from lib.define.CollisionData import CollisionData as CollisionDataDef
 
-IP    = '127.0.0.1'
+IP    = '0.0.0.0'
 PORT  = 9092
 TOPIC = '/morai/collision_data'
 

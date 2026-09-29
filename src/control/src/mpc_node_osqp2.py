@@ -444,7 +444,7 @@ class MPCController:
 
     def publish_safe_stop(self):
         ctrl_msg = CtrlCmd()
-        ctrl_msg.ctrl_mode = 2
+        # ctrl_msg.ctrl_mode = 2
         ctrl_msg.cmd_type = 1
         ctrl_msg.gear = 4
         ctrl_msg.steer = 0.0
@@ -454,7 +454,7 @@ class MPCController:
 
     def publish_model_full_brake(self):
         ctrl_msg = CtrlCmd()
-        ctrl_msg.ctrl_mode = 2
+        # ctrl_msg.ctrl_mode = 2
         ctrl_msg.cmd_type = 1
         ctrl_msg.gear = 4
         ctrl_msg.steer = float(np.clip(
@@ -1209,7 +1209,7 @@ class MPCController:
 
 
             ctrl_msg = CtrlCmd()
-            ctrl_msg.ctrl_mode = 2
+            # ctrl_msg.ctrl_mode = 2
             ctrl_msg.cmd_type = 1
             ctrl_msg.gear = 4
             

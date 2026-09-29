@@ -1,0 +1,22 @@
+# 6.2 센서 신호 감시 (sensor_health_node)
+# 두절 임계 T_i = allowed_missing / rate_hz
+# rate_hz는 실제 주기로 맞춘다:  rostopic hz <topic>
+rate: 50.0            # 판정 및 발행 주기
+release_time: 0.68    # 복구 후 이 시간 동안 끊김 없이 수신되면 해제 (6.1.2와 동일)
+
+signals:
+  imu:
+    topic: /imu                        # TODO: 실제 IMU 토픽 이름 확인
+    type: imu
+    rate_hz: 50.0
+    allowed_missing: 10                # 0.2 s
+  lidar:
+    topic: /velodyne_points
+    type: pointcloud
+    rate_hz: 10.0
+    allowed_missing: 3                 # 0.3 s
+  ego:
+    topic: /localization/kinematic_state
+    type: odometry
+    rate_hz: 50.0
+    allowed_missing: 10                # 0.2 s

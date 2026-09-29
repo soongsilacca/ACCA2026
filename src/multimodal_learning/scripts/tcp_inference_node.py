@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """ROS inference bridge for the TCP MORAI trajectory checkpoint."""
 
+import json
 import math
 import os
 import sys
 import threading
+import time
 
 import cv2
 import numpy as np
@@ -15,6 +17,7 @@ from geometry_msgs.msg import Point, PoseStamped
 from morai_msgs.msg import CtrlCmd, EgoVehicleStatus
 from nav_msgs.msg import Odometry, Path
 from scipy.interpolate import PchipInterpolator
+from scipy.spatial import cKDTree
 from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import ColorRGBA, Float32, Float32MultiArray, String
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -109,11 +112,19 @@ class TCPInferenceNode:
                     predictions.append(waypoint)
                 trajectory_hidden = torch.stack(trajectory_hidden, dim=1)
 
-                # The original TCP control attention expects the 8x29 feature
-                # map produced by a 256x900 input image.
+                # Match full-policy training: adapt the learned attention
+                # grid to the native MORAI image feature map.
                 initial_attention = self.init_att(measurement_feature).view(
                     -1, 1, 8, 29
                 )
+                if initial_attention.shape[-2:] != spatial.shape[-2:]:
+                    initial_attention = torch.nn.functional.interpolate(
+                        initial_attention, size=spatial.shape[-2:],
+                        mode="bilinear", align_corners=False,
+                    )
+                    initial_attention = initial_attention / initial_attention.sum(
+                        dim=(2, 3), keepdim=True
+                    ).clamp_min(1e-8)
                 attended = torch.sum(
                     spatial * initial_attention, dim=(2, 3)
                 )
@@ -186,6 +197,32 @@ class TCPInferenceNode:
         self.model.load_state_dict(checkpoint["model_state"], strict=True)
         self.model.eval()
 
+        self.command_lookahead_m = float(rospy.get_param(
+            "~command_lookahead_m", 30.0
+        ))
+        self.command_map_max_distance_m = float(rospy.get_param(
+            "~command_map_max_distance_m", 5.0
+        ))
+        command_map_link_file = os.path.abspath(rospy.get_param(
+            "~command_map_link_file", ""
+        ))
+        if self.command_lookahead_m <= 0.0:
+            raise ValueError("command lookahead must be positive")
+        if self.command_map_max_distance_m <= 0.0:
+            raise ValueError("command map maximum distance must be positive")
+        (
+            self.command_map_tree,
+            self.command_map_tangents,
+            self.command_map_commands,
+        ) = self.load_command_map(command_map_link_file)
+
+        self.model_input_min_speed_kph = float(rospy.get_param(
+            "~model_input_min_speed_kph", 0.0
+        ))
+        if not math.isfinite(self.model_input_min_speed_kph) or self.model_input_min_speed_kph < 0.0:
+            raise ValueError("model_input_min_speed_kph must be finite and nonnegative")
+
+        self.use_model_stop = bool(rospy.get_param("~use_model_stop", True))
         self.inference_period = float(rospy.get_param(
             "~model_inference_period", 0.3
         ))
@@ -291,8 +328,11 @@ class TCPInferenceNode:
         self.runtime_action_pub = rospy.Publisher(
             "/multimodal_learning/runtime_action", String, queue_size=1
         )
+        self.latency_pub = rospy.Publisher(
+            "/multimodal_learning/inference_latency_ms", Float32, queue_size=1
+        )
         self.direct_control_pub = rospy.Publisher(
-            "/ctrl_cmd", CtrlCmd, queue_size=1
+            "/ctrl_cmd_raw", CtrlCmd, queue_size=1
         ) if self.direct_control else None
         self.direct_control_values_pub = rospy.Publisher(
             "/multimodal_learning/tcp_control", Float32MultiArray,
@@ -329,7 +369,8 @@ class TCPInferenceNode:
             else Image
         )
         rospy.Subscriber(
-            camera_topic, camera_type, self.camera_callback, queue_size=1
+            camera_topic, camera_type, self.camera_callback, queue_size=1,
+            buff_size=2 ** 24, tcp_nodelay=True,
         )
         self.publish_timer = rospy.Timer(
             rospy.Duration(1.0 / max(self.publish_hz, 1.0)),
@@ -425,6 +466,105 @@ class TCPInferenceNode:
         return one_hot
 
     @staticmethod
+    def load_command_map(link_file):
+        if not link_file or not os.path.isfile(link_file):
+            raise FileNotFoundError(
+                "TCP command-map link_set.json is missing: %s" % link_file
+            )
+        with open(link_file, "r") as stream:
+            links = json.load(stream)
+        signal_to_tcp = {
+            "left": 0,
+            "left_unprotected": 0,
+            "right": 1,
+            "right_unprotected": 1,
+            "straight": 2,
+        }
+        map_points = []
+        map_tangents = []
+        map_commands = []
+        for link in links:
+            points = np.asarray(link.get("points", []), dtype=np.float32)
+            if points.ndim != 2 or len(points) < 2 or points.shape[1] < 2:
+                continue
+            points = points[:, :2]
+            tangent = np.gradient(points, axis=0)
+            tangent /= np.maximum(
+                np.linalg.norm(tangent, axis=1, keepdims=True), 1.0e-6
+            )
+            command = 3
+            if str(link.get("link_type")) == "1":
+                command = signal_to_tcp.get(
+                    str(link.get("related_signal", "")).lower(), 3
+                )
+            map_points.append(points)
+            map_tangents.append(tangent)
+            map_commands.append(np.full(len(points), command, np.int8))
+        if not map_points:
+            raise ValueError("TCP command map contains no valid links")
+        points = np.concatenate(map_points)
+        return (
+            cKDTree(points),
+            np.concatenate(map_tangents),
+            np.concatenate(map_commands),
+        )
+
+    def command_from_map(self, route_xy, odom):
+        """Match the next route section to directed MGeo links."""
+        closest = int(np.square(route_xy).sum(axis=1).argmin())
+        forward = np.asarray(route_xy[closest:], dtype=np.float32)
+        if len(forward) < 2:
+            return self.route_command(route_xy)
+        progress = np.r_[
+            0.0, np.cumsum(np.linalg.norm(np.diff(forward, axis=0), axis=1))
+        ]
+        forward = forward[progress <= self.command_lookahead_m + 1.0e-3]
+        if len(forward) < 2:
+            return self.route_command(route_xy)
+
+        orientation = odom.pose.pose.orientation
+        yaw = euler_from_quaternion([
+            orientation.x, orientation.y, orientation.z, orientation.w,
+        ])[2]
+        cosine, sine = math.cos(yaw), math.sin(yaw)
+        route_map = np.column_stack((
+            odom.pose.pose.position.x
+            + cosine * forward[:, 0] - sine * forward[:, 1],
+            odom.pose.pose.position.y
+            + sine * forward[:, 0] + cosine * forward[:, 1],
+        ))
+        route_tangent = np.gradient(route_map, axis=0)
+        route_tangent /= np.maximum(
+            np.linalg.norm(route_tangent, axis=1, keepdims=True), 1.0e-6
+        )
+        neighbor_count = min(16, self.command_map_tree.n)
+        distance, nearest = self.command_map_tree.query(
+            route_map, k=neighbor_count
+        )
+        if neighbor_count == 1:
+            distance = distance[:, None]
+            nearest = nearest[:, None]
+        alignment = np.sum(
+            self.command_map_tangents[nearest] * route_tangent[:, None, :],
+            axis=2,
+        )
+        score = distance ** 2 + 9.0 * (1.0 - alignment) ** 2
+        score[alignment < 0.25] = np.inf
+        choice = np.argmin(score, axis=1)
+        rows = np.arange(len(route_map))
+        matched_distance = distance[rows, choice]
+        commands = self.command_map_commands[nearest[rows, choice]].copy()
+        valid = np.isfinite(score[rows, choice]) & (
+            matched_distance <= self.command_map_max_distance_m
+        )
+        commands[~valid] = 3
+        intersection = np.flatnonzero(commands != 3)
+        command_index = int(commands[intersection[0]]) if len(intersection) else 3
+        one_hot = np.zeros(6, dtype=np.float32)
+        one_hot[command_index] = 1.0
+        return one_hot
+
+    @staticmethod
     def morai_to_tcp(point):
         return np.asarray([-point[1], -point[0]], dtype=np.float32)
 
@@ -438,7 +578,7 @@ class TCPInferenceNode:
         image = np.transpose(image_chw, (1, 2, 0))
         if direct_control:
             image = cv2.resize(
-                image, (900, 256), interpolation=cv2.INTER_AREA
+                image, (640, 360), interpolation=cv2.INTER_AREA
             )
         else:
             height, width = image.shape[:2]
@@ -553,20 +693,28 @@ class TCPInferenceNode:
             route_xy = self.route_in_base_link(route, odom)
             target_morai = self.route_target(route_xy, 10.0)
             target_tcp = self.morai_to_tcp(target_morai)
-            command = self.route_command(route_xy)
+            command = self.command_from_map(route_xy, odom)
             if status is None:
                 speed_mps = abs(float(odom.twist.twist.linear.x))
             else:
                 speed_mps = math.hypot(
                     float(status.velocity.x), float(status.velocity.y)
                 ) * self.velocity_scale
+            # Floor only the model input; retain measured speed for diagnostics
+            # and all other planning calculations. Zero disables the floor.
+            model_speed_mps = max(speed_mps, self.model_input_min_speed_kph / 3.6)
             state = np.concatenate((
-                np.asarray([speed_mps / 12.0], dtype=np.float32),
+                np.asarray([model_speed_mps / 12.0], dtype=np.float32),
                 target_tcp,
                 command,
             ))
             image = image_from_msg(msg, 640, 360)
-            image = self.preprocess_image(image, self.direct_control)
+            image = self.preprocess_image(
+                image, self.checkpoint_schema == "tcp_morai_full_policy_v1"
+            )
+            if self.device.type == "cuda":
+                torch.cuda.synchronize(self.device)
+            inference_started = time.perf_counter()
             with torch.no_grad():
                 image_tensor = torch.from_numpy(image).unsqueeze(0).to(
                     self.device
@@ -585,6 +733,10 @@ class TCPInferenceNode:
                         image_tensor, state_tensor, target_tensor
                     )
                 )
+            if self.device.type == "cuda":
+                torch.cuda.synchronize(self.device)
+            inference_ms = (time.perf_counter() - inference_started) * 1000.0
+            self.latency_pub.publish(Float32(inference_ms))
             action_probabilities = (
                 output["action_probabilities"][0].float().cpu().numpy()
                 if self.state_head_is_action else None
@@ -614,6 +766,12 @@ class TCPInferenceNode:
                 )
             else:
                 action_index = 1 if stop_active else 0
+            if not self.use_model_stop:
+                stop_active = False
+                self.state_stop_active = False
+                stop_speed_threshold = 0.0
+                if action_index == 1:
+                    action_index = 0
             tcp_speed_head = (
                 float(output["speed"][0, 0].float().cpu()) * 12.0
             )
@@ -923,6 +1081,8 @@ class TCPInferenceNode:
             rospy.logwarn_throttle(2.0, "TCP prediction stale; safe stop")
             return
 
+        # Send the fresh control before building visualization/path messages.
+        self.publish_direct_control(prediction)
         map_path = self.make_path(
             prediction["map_xy"],
             prediction["map_yaw"],
@@ -962,7 +1122,6 @@ class TCPInferenceNode:
             prediction.get("action_probabilities"),
             prediction.get("action_index"),
         )
-        self.publish_direct_control(prediction)
 
 
 if __name__ == "__main__":

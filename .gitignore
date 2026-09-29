@@ -29,6 +29,16 @@ logs/
 *.rar
 *.7z
 
+# Trained model weights and inference engines
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.tflite
+*.weights
+*.engine
+
 # Workspace-specific dataset and raw data directories
 bagfile_0731/
 datasets/

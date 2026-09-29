@@ -92,6 +92,9 @@ class SimLingoInferenceNode:
         self.runtime_action_pub = rospy.Publisher(
             "/multimodal_learning/runtime_action", String, queue_size=1
         )
+        self.latency_pub = rospy.Publisher(
+            "/multimodal_learning/inference_latency_ms", Float32, queue_size=1
+        )
         rospy.Subscriber("/localization/kinematic_state", Odometry,
                          self.odom_callback, queue_size=1)
         rospy.Subscriber("/morai/ego_vehicle_status", EgoVehicleStatus,
@@ -200,6 +203,7 @@ class SimLingoInferenceNode:
             # the ego origin so MPC receives a path beginning at the vehicle.
             local_xy = np.vstack((np.zeros((1, 2), np.float32), temporal_xy))
             latency = (time.perf_counter() - started) * 1000.0
+            self.latency_pub.publish(Float32(latency))
             if not np.isfinite(local_xy).all() or len(local_xy) < 2:
                 raise ValueError("non-finite/empty SimLingo path")
             steps = np.linalg.norm(np.diff(local_xy, axis=0), axis=1) / 0.2

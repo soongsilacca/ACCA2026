@@ -1,0 +1,59 @@
+from pathlib import Path
+import json
+import csv
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+p=Path(__file__).resolve().parent/'controller_bag_report'
+r=json.loads((p/'metrics.json').read_text())
+for row in r:
+ row['reported_route_completion_pct'] = 100.0 if row['controller'] == 'model' else row['route_completion_nearest_projection_pct']
+ row['route_completion_source'] = 'user-confirmed completion; bag stopped early' if row['controller'] == 'model' else 'bag nearest projection'
+(p/'metrics.json').write_text(json.dumps(r,indent=2))
+with (p/'metrics.csv').open('w') as f:
+ writer=csv.DictWriter(f,fieldnames=list(r[0]));writer.writeheader();writer.writerows(r)
+table='| 제어 방식 | 기록 시간(s) | 최대 경로 도달률(%) | 평균 / 최대 CTE(m) | 평균 속도(km/h) | 추론 평균 / p95(ms) | 충돌 알림 묶음 수 |\n|---|---:|---:|---:|---:|---:|---:|\n'
+for x in r:
+ table+=f"| {x['controller']} | {x['duration_s']:.1f} | {x['reported_route_completion_pct']:.2f} | {x['mean_cte_m']:.2f} / {x['max_cte_m']:.2f} | {x['mean_abs_speed_kph']:.2f} | {x['mean_inference_ms']:.2f} / {x['p95_inference_ms']:.2f} | {x['collision_bursts_1s']} |\n"
+text='''# 7.3 폐루프(Closed-loop) 주행 성능 평가
+
+Open-loop 평가에서는 각 시점의 ground-truth state가 유지되지만, 폐루프 주행에서는 출력된 제어가 다음 시점의 차량 위치와 카메라 관측을 변화시킨다. 본 절에서는 MORAI에서 기록한 TCP 직접제어(model), TCP 예측 경로를 사용하는 MPC, Stanley, Pure Pursuit(PP)의 네 주행 로그를 분석하였다. 이는 서로 다른 모델의 비교가 아니라 동일 TCP 계열의 제어 적용 방식 비교이다. 체크포인트 및 런타임 설정의 동일성은 별도 실행 manifest가 없어 확정하지 않았다.
+
+각 방식별 bag 1개를 분석하였으며, 동일 시나리오·초기 조건의 반복 시행이 확인된 실험으로 해석하지 않았다. 또한 직접제어와 경로추종 방식은 종방향 제어원이 다르므로 순수한 횡방향 제어기 성능 비교로 해석하는 데 한계가 있다.
+
+## 측정 결과
+
+'''+table+'''
+최대 경로 도달률은 차량의 전역 위치를 기준 경로 선분에 최근접 투영한 뒤 최대 누적 경로 좌표를 전체 길이로 나눈 값이다. 기록 이전 주행도 포함될 수 있어 완주 성공률이나 기록 구간 전체의 유효 수행률과 동일하지 않다. 평행도로·교차 구간에서는 최근접 매칭 오류가 가능하다. CTE는 도로 경계 이탈이 아닌 기준 경로와의 거리이다. 평균은 수신 샘플 기준이며, 추론 시간은 신경망 forward 구간으로 센서 수신부터 제어 적용까지의 지연을 뜻하지 않는다.
+
+충돌 알림은 빈 슬롯 (0,0), (-1,0)을 제외하고, 유효 메시지 사이 1초 초과 간격을 기준으로 묶었다. 이 값은 고유 충돌 횟수의 확정치가 아니다. 여러 물체 접촉, 지속 접촉, 재접촉을 구분하려면 collision evidence를 추가 검토해야 한다. 한 bag의 알림 묶음 수를 collision rate(%)로 변환하지 않았다.
+
+## 최종 TCP 직접제어 결과
+
+'''
+x=next(x for x in r if x['controller']=='model')
+text+=f"TCP 경로 도달률은 사용자 완주 확인에 따라 100%로 반영하였다. Bag은 조기 종료되어 기록상 최대 도달률은 {x['route_completion_nearest_projection_pct']:.2f}%이며, 표와 그림의 TCP 100%는 사용자 확인값이다. TCP 직접제어 로그는 {x['duration_s']:.1f}초이며, 기록 구간 평균 CTE는 {x['mean_cte_m']:.2f}m, 최대 CTE는 {x['max_cte_m']:.2f}m였다. 평균 추론 시간은 {x['mean_inference_ms']:.2f}ms, p95는 {x['p95_inference_ms']:.2f}ms였다. 충돌 알림 묶음은 {x['collision_bursts_1s']}개 검출되었다.\n\n"
+text+='''초안의 route completion 97%, collision rate 5%, 신호 성공률 91%, 정적 회피 85%, 동적 정지 96%는 본 bag 분석으로 검증된 수치가 아니므로 최종 결과로 사용하지 않았다. 신호 상태·정지선 통과 이벤트·장애물 추적 및 이벤트 분모가 기록되지 않아 이벤트별 성공률은 미측정으로 표기한다. 전방 영상 수작업 라벨링과 지도 정지선 대조로 후속 평가할 수 있으나 본 분석에서는 수행하지 않았다. 로그만으로 학습 실패 원인이나 특정 장애물 회피 실패 원인을 단정하지 않았다.
+
+그림 7-4. TCP 제어 적용 방식별 최대 경로 도달률, 평균 CTE 및 추론 지연(단일 기록 분석). 이벤트 성공률은 미측정이므로 그래프에서 제외하였다.
+
+## Recovery 성능 평가
+
+정상 경로 주변에 집중된 teacher 데이터의 상태 분포를 확장하기 위해 사람 주행 데이터를 함께 활용할 수 있다. 다만 제시된 188개 source log 사용 여부는 현재 네 bag으로 검증할 수 없으며 학습 manifest로 확인해야 한다.
+
+현재 기록에는 동일 초기 lateral offset에서 반복한 recovery 시험, teacher-only 대조군, 개입 여부 및 복귀 판정 라벨이 없다. 따라서 mixed-data TCP와 teacher-only 모델의 recovery success rate, maximum lateral deviation, time-to-recover는 모두 **미측정**이다. 일반 주행의 최대 CTE를 recovery maximum deviation으로 대신 넣지 않았다.
+
+후속 실험에서는 같은 지도·출발 heading·속도에서 동일 lateral offset을 적용한다. 예를 들어 |CTE|≤0.5m에 진입하여 2초 유지하면 복귀 성공, 출발부터 최초 유효 복귀까지를 time-to-recover로 정의할 수 있다. 이 기준은 후속 시험을 위한 제안이며 이번 결과에 소급 적용하지 않았다. 충돌·시간 초과·수동 개입은 실패로 분류하고 각 offset별 반복 횟수와 성공/전체 건수를 함께 제시한다.
+
+## 분석 품질 확인
+
+'''
+for x in r:
+ text+=f"- {x['controller']}: 위치 출처={x['pose_source']}; 기준 경로={x['route_source']}; 기록 시작 진행거리 {x['start_progress_m']:.1f}m; 시작좌표 {x['start_xy']}; 순간이동 후보 {x['teleport_candidates']}개; auto(2)가 아닌 상태 샘플 {x['manual_mode_samples']}개(None은 미측정).\n"
+text+='\n네 bag 모두 내부 /global_path를 기준으로 사용했다. MPC만 GT가 없어 localization으로 계산했으므로 다른 방식과 CTE를 직접 비교할 때 이 차이를 고려해야 한다. 원본 bag은 변경하지 않았다. 재현: `python3 analyze_controller_bags.py && python3 write_controller_report.py`.\n'
+(p/'section_7_3.md').write_text(text)
+fig,axs=plt.subplots(1,3,figsize=(13,4))
+for ax,key,label in zip(axs,['reported_route_completion_pct','mean_cte_m','mean_inference_ms'],['Route completion [%]\nTCP: user confirmed','Mean CTE [m]','Mean inference [ms]']):
+ ax.bar([x['controller'] for x in r],[x[key] for x in r]);ax.set_ylabel(label)
+fig.tight_layout();fig.savefig(str(p/'figure_7_4.png'),dpi=200)
+print(text)

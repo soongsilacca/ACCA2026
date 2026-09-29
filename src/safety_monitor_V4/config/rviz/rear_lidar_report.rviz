@@ -1,0 +1,226 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Report Layers
+  - Class: rviz/Views
+    Name: Report Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.28
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 110; 120; 135
+      Enabled: true
+      Line Style:
+        Line Width: 0.03
+        Value: Lines
+      Name: 1 m scale grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: -0.45
+      Plane: XY
+      Plane Cell Count: 100
+      Reference Frame: base_link
+    - Class: rviz/Axes
+      Enabled: true
+      Length: 2
+      Name: base_link axes (X red, Y green)
+      Radius: 0.08
+      Reference Frame: base_link
+    - Class: rviz/Axes
+      Enabled: true
+      Length: 0.8
+      Name: rear LiDAR mounting axes
+      Radius: 0.04
+      Reference Frame: rear_lidar
+    - Alpha: 0.85
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 35; 185; 255
+      Color Transformer: FlatColor
+      Decay Time: 0.30
+      Enabled: true
+      Name: 1 Final obstacles (planning input)
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: true
+      Size (Pixels): 5
+      Size (m): 0.06
+      Style: Points
+      Topic: /rear_lidar/obstacles
+      Use Fixed Frame: true
+    - Alpha: 0.18
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 230; 90; 65
+      Color Transformer: FlatColor
+      Decay Time: 0.30
+      Enabled: true
+      Name: 2 Removed road (RANSAC)
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: false
+      Size (Pixels): 3
+      Size (m): 0.04
+      Style: Points
+      Topic: /rear_lidar/debug/ground
+      Use Fixed Frame: true
+    - Alpha: 0.35
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 190; 90; 255
+      Color Transformer: FlatColor
+      Decay Time: 0.30
+      Enabled: true
+      Name: 3 Removed walls and dividers
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: false
+      Size (Pixels): 4
+      Size (m): 0.05
+      Style: Points
+      Topic: /rear_lidar/debug/walls
+      Use Fixed Frame: true
+    - Alpha: 0.22
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 220; 40
+      Color Transformer: FlatColor
+      Decay Time: 0.30
+      Enabled: false
+      Name: Optional cropped ROI before removal
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: false
+      Size (Pixels): 2
+      Size (m): 0.03
+      Style: Points
+      Topic: /rear_lidar/debug/cropped
+      Use Fixed Frame: true
+    - Alpha: 0.55
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 160; 160; 160
+      Color Transformer: FlatColor
+      Decay Time: 0.20
+      Enabled: false
+      Name: Optional raw 360 degree LiDAR
+      Position Transformer: XYZ
+      Queue Size: 3
+      Selectable: false
+      Size (Pixels): 2
+      Size (m): 0.03
+      Style: Points
+      Topic: /rear_lidar/points_raw
+      Use Fixed Frame: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /rear_lidar/markers
+      Name: 4 Tracks, predictions and exact ROI
+      Namespaces:
+        rear_lidar_boxes: true
+        rear_lidar_labels: true
+        rear_lidar_predictions: true
+        rear_lidar_report_ego_exclusion: true
+        rear_lidar_report_labels: true
+        rear_lidar_report_roi: true
+        rear_lidar_report_sensor: true
+      Queue Size: 20
+  Enabled: true
+  Global Options:
+    Background Color: 18; 22; 28
+    Default Light: true
+    Fixed Frame: base_link
+    Frame Rate: 30
+  Name: Rear LiDAR Report Capture
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive Objects: true
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+  Views:
+    Current:
+      Angle: -1.5708
+      Class: rviz/TopDownOrtho
+      Invert Z Axis: false
+      Name: Full 40 m ROI overview
+      Near Clip Distance: 0.01
+      Scale: 16
+      Target Frame: base_link
+      X: -18.5
+      Y: 0
+    Saved:
+      - Angle: -1.5708
+        Class: rviz/TopDownOrtho
+        Invert Z Axis: false
+        Name: Full 40 m ROI overview
+        Near Clip Distance: 0.01
+        Scale: 16
+        Target Frame: base_link
+        X: -18.5
+        Y: 0
+      - Angle: -1.5708
+        Class: rviz/TopDownOrtho
+        Invert Z Axis: false
+        Name: Close rear vehicle tracking
+        Near Clip Distance: 0.01
+        Scale: 34
+        Target Frame: base_link
+        X: -8
+        Y: 0
+      - Class: rviz/Orbit
+        Distance: 34
+        Field of View: 0.785398
+        Focal Point:
+          X: -13
+          Y: 0
+          Z: 0
+        Focal Shape Fixed Size: true
+        Focal Shape Size: 0.05
+        Invert Z Axis: false
+        Name: Ground and wall removal 3D
+        Near Clip Distance: 0.01
+        Pitch: 0.72
+        Target Frame: base_link
+        Yaw: 1.5708
+Window Geometry:
+  Height: 900
+  Hide Left Dock: false
+  Hide Right Dock: false
+  Width: 1440
+  X: 0
+  Y: 0

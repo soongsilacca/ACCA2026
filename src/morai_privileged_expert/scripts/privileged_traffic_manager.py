@@ -259,6 +259,17 @@ class PrivilegedTrafficManager:
         
         group = sorted(list(group))
         light = group[0]  # Canonical light for the group prevents state flip-flopping
+        stopline_candidates = []
+        for controlled_light, link_points in self.controlled_links:
+            if controlled_light not in group or len(link_points) == 0:
+                continue
+            relative = np.asarray(link_points[-1], dtype=float) - point
+            longitudinal = float(relative.dot(forward))
+            lateral = abs(float(relative.dot(normal)))
+            if -5.0 <= longitudinal <= self.radius and lateral <= 15.0:
+                stopline_candidates.append(longitudinal)
+        stopline_distance = (min(stopline_candidates)
+                             if stopline_candidates else distance)
 
         if (light != self.last_light and light not in getattr(self, 'last_group', [])) or now >= self.next_switch:
             if not self.phase_sequence:
@@ -289,8 +300,9 @@ class PrivilegedTrafficManager:
             rospy.logerr_throttle(2.0, "Traffic-light UDP failed: %s", error)
             return
         self.last_send = now; self.last_light = light; self.last_group = group
-        self.pub.publish(String("%s group=%s status=%d distance=%.1fm next=%.1fs" %
+        self.pub.publish(String("%s group=%s status=%d distance=%.1fm stopline=%.1fm next=%.1fs" %
                                 (light, ",".join(group), status, distance,
+                                 stopline_distance,
                                  max((self.next_switch-now).to_sec(), 0.0))))
 
 

@@ -12,7 +12,7 @@ from morai_msgs.msg import EgoVehicleStatus as EgoVehicleStatusMsg
 from lib.network.UDP import Receiver
 from lib.define.EgoVehicleStatus import EgoVehicleStatus as EgoVehicleStatusDef
 
-IP       = '127.0.0.1'
+IP       = '0.0.0.0'
 PORT     = 9009
 TOPIC    = '/morai/ego_vehicle_status'
 FRAME_ID = 'base_link'
@@ -56,8 +56,6 @@ def build_ego_msg(raw, stamp):
     msg.tire_cornering_stiffness_rl = float(raw.tire_cornering_stiffness_rl)
     msg.tire_cornering_stiffness_rr = float(raw.tire_cornering_stiffness_rr)
     return msg
-
-
 def main():
     rospy.init_node('morai_ego_vehicle_status_publisher', anonymous=False)
     port  = rospy.get_param('~port', PORT)

@@ -13,7 +13,10 @@
 
   <arg name="ego_ctrl_port" default="9093" />
   <arg name="ego_ctrl_topic" default="/ctrl_cmd" />
+  <arg name="estop_topic" default="/safety/estop" />
   <arg name="enable_ctrl_sender" default="true" />
+  <arg name="startup_accel_duration_sec" default="3.0" />
+  <arg name="startup_accel" default="0.3" />
 
   <!-- CollisionData  UDP 9092 → /morai/collision_data -->
   <node name="morai_collision_data"
@@ -43,6 +46,10 @@
     <param name="ip" value="127.0.0.1" />
     <param name="port" value="$(arg ego_ctrl_port)" />
     <param name="cmd_topic" value="$(arg ego_ctrl_topic)" />
+    <param name="estop_topic" value="$(arg estop_topic)" />
+    <param name="startup_accel_duration_sec"
+           value="$(arg startup_accel_duration_sec)" />
+    <param name="startup_accel" value="$(arg startup_accel)" />
   </node>
 
 </launch>

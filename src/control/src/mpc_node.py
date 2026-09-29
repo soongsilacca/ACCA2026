@@ -24,6 +24,7 @@ if SOURCE_DIR not in sys.path:
 
 #스탠리
 from test_stanley import stanley, state
+from pure_pursuit import pure_pursuit
 
 import time
 
@@ -88,8 +89,9 @@ class MPCController:
         self.controller_mode = str(
             rospy.get_param('~controller_mode', 'mpc')
         ).strip().lower()
-        if self.controller_mode not in ('mpc', 'stanley'):
-            raise ValueError("controller_mode must be 'mpc' or 'stanley'")
+        if self.controller_mode not in ('mpc', 'stanley', 'pp'):
+            raise ValueError("controller_mode must be 'mpc', 'stanley', or 'pp'")
+        self.pp_solver = pure_pursuit() if self.controller_mode == 'pp' else None
         self.path_topic = rospy.get_param('~path_topic', '/local_route')
         self.path_start_index = int(rospy.get_param('~path_start_index', 0))
         if self.path_start_index < 0:
@@ -166,7 +168,7 @@ class MPCController:
                         '/home/acca/tracking_logs/mpc_solve_times.csv'
                     )
 
-        rospy.on_shutdown(self.mpc_solve_time)
+        # rospy.on_shutdown(self.mpc_solve_time)
 
         
         self.qp_sol = None
@@ -615,8 +617,11 @@ class MPCController:
         return steer, accel, brake
 
     def run_stanley_controller(self, target_velocity):
-        """Stanley lateral control with PI longitudinal pedal commands."""
-        steer_target = float(self.stanley_solver.stan_control(
+        """Stanley or Pure Pursuit steering with PI longitudinal control."""
+        steer_target = float(self.pp_solver.pure_pursuit_control(
+            state(self.current_x, self.current_y, self.current_yaw, self.current_v),
+            self.cx, self.cy,
+        )) if self.controller_mode == 'pp' else float(self.stanley_solver.stan_control(
             self.stanley_state,
             self.cx,
             self.cy,
@@ -1212,7 +1217,7 @@ class MPCController:
             xref = np.zeros((self.nx, self.T + 1))                      
             xref[1, :] = self.target_v
 
-            if self.controller_mode == 'stanley':
+            if self.controller_mode in ('stanley', 'pp'):
                 (
                     control_target_v,
                     curve_speed_limit,
@@ -1294,9 +1299,10 @@ class MPCController:
             else:
                 rospy.loginfo_throttle(
                     1.0,
-                    "Stanley control: v=%.2f MGeo=%.2f curve_target=%.2f "
+                    "%s control: v=%.2f MGeo=%.2f curve_target=%.2f "
                     "m/s (limit=%.2f, curvature=%.4f) steer=%.3f "
                     "accel=%.3f brake=%.3f",
+                    self.controller_mode.upper(),
                     self.current_v,
                     self.target_v,
                     control_target_v,

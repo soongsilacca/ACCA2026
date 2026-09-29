@@ -1,0 +1,40 @@
+<launch>
+  <!-- 6.1.2 충돌 판정, 6.2 센서 신호 감시, E-STOP gate. 인지 노드는 rear_lidar.launch. -->
+  <arg name="mgeo_path" default="$(find map_viz)/scripts" /> <!-- link_set.json 폴더 -->
+  <arg name="ego_source" default="odometry" />
+  <arg name="ego_topic" default="/localization/kinematic_state" />
+  <arg name="route_topic" default="/local_route" />
+  <arg name="tracks_topic" default="/rear_lidar/tracked_objects" />
+  <arg name="imu_topic" default="/imu" />
+  <!-- MORAI의 단일 LiDAR 스트림을 후방 안전 인지와 함께 사용한다. -->
+  <arg name="lidar_topic" default="/velodyne_points" />
+  <arg name="cmd_in" default="/ctrl_cmd_raw" />
+  <arg name="cmd_out" default="/ctrl_cmd" />
+  <arg name="launch_gate" default="true" />
+
+  <node pkg="safety_monitor" type="rear_collision_node.py" name="rear_collision_monitor"
+        output="screen">
+    <rosparam command="load" file="$(find safety_monitor)/config/collision.yaml" ns="collision" />
+    <param name="mgeo_path" value="$(arg mgeo_path)" />
+    <param name="ego_source" value="$(arg ego_source)" />
+    <param name="ego_topic" value="$(arg ego_topic)" />
+    <param name="ego_velocity_scale" value="1.0" />
+    <param name="route_topic" value="$(arg route_topic)" />
+    <param name="tracks_topic" value="$(arg tracks_topic)" />
+  </node>
+
+  <node pkg="safety_monitor" type="sensor_health_node.py" name="sensor_health_monitor"
+        output="screen">
+    <rosparam command="load" file="$(find safety_monitor)/config/health.yaml" />
+    <param name="signals/imu/topic" value="$(arg imu_topic)" />
+    <param name="signals/lidar/topic" value="$(arg lidar_topic)" />
+    <param name="signals/ego/topic" value="$(arg ego_topic)" />
+  </node>
+
+  <node if="$(arg launch_gate)" pkg="safety_monitor" type="estop_gate_node.py"
+        name="estop_gate" output="screen">
+    <rosparam command="load" file="$(find safety_monitor)/config/gate.yaml" />
+    <param name="cmd_in" value="$(arg cmd_in)" />
+    <param name="cmd_out" value="$(arg cmd_out)" />
+  </node>
+</launch>

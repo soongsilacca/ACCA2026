@@ -10,7 +10,7 @@ from std_msgs.msg import Header
 from lib.network.UDP import Receiver
 from lib.define.IMU import IMU
 
-IP       = '127.0.0.1'
+IP       = '0.0.0.0'
 PORT     = 1112
 TOPIC    = '/imu'
 FRAME_ID = 'imu'

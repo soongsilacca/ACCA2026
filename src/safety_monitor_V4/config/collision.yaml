@@ -1,0 +1,50 @@
+# 6.1 후방 충돌 감시 파라미터 (rear_collision_node ~collision)
+# 이름은 src/safety_monitor/common/params.py CollisionParams와 같다.
+
+# 자차 치수. base_link = 뒤차축 중심 (rear_lidar.yaml 주석: 뒤 범퍼 -0.79, 앞 범퍼 +3.845)
+ego_front: 3.845
+ego_rear: 0.79
+ego_width: 1.89
+
+# 대상 차량. 후방 LiDAR는 앞면만 보므로 전장은 가정값, 폭은 dim_y를 범위로 제한
+obs_length_default: 4.6
+obs_width_min: 1.6
+obs_width_max: 2.2
+
+# 차선
+lane_half_width: 1.75
+lane_match_max_dist: 3.0
+lane_match_max_heading_deg: 45.0
+chain_back: 80.0
+chain_fwd: 200.0
+stop_on_map_failure: false
+
+# 차선 변경 종료 판정
+done_lateral: 0.3
+done_heading_deg: 3.0
+
+# ② 횡방향 / ③ 종방향 / ④ 결합
+lateral_margin: 0.15
+route_step: 0.2
+long_margin: 0.5
+v_rel_eps: 0.05
+horizon: 3.0
+
+# 예외 첫째: 정지 중 재출발 가정 속도
+v_stop: 0.3
+v_restart: 4.0
+
+# ① 감시 대상 진입/제외 임계 (상대속도, m/s)
+v_enter: 0.5
+v_exit: -0.5
+
+# 예외 둘째: 통과 차량 정지 유지
+hold_trigger_gap: 2.0
+hold_extra: 0.68
+hold_max: 5.0
+hold_velocity_window: 5
+hold_velocity_max_front_x: 1.2
+
+# 발행/해제 (프레임)
+n_on: 2
+n_off: 5

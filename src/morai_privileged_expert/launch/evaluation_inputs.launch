@@ -1,0 +1,33 @@
+<launch>
+  <!-- Privileged evaluation evidence only; no teacher planner/controller. -->
+  <arg name="global_path_csv"
+       default="$(env HOME)/acca_ws/global_path/global_path.csv" />
+  <arg name="object_info_port" default="7505" />
+
+  <node pkg="morai_udp_bridge" type="object_info_publisher_node.py"
+        name="morai_object_info" output="screen">
+    <param name="port" value="$(arg object_info_port)" />
+    <param name="topic" value="/Object_topic" />
+  </node>
+
+  <node pkg="morai_privileged_expert" type="privileged_traffic_manager.py"
+        name="privileged_traffic_manager" output="screen">
+    <param name="map_dir" value="$(find map_viz)/scripts" />
+    <param name="min_phase_sec" value="15.0" />
+    <param name="max_phase_sec" value="25.0" />
+    <param name="red_min_phase_sec" value="2.0" />
+    <param name="red_max_phase_sec" value="3.0" />
+    <param name="left_min_phase_sec" value="8.0" />
+    <param name="left_max_phase_sec" value="9.0" />
+    <param name="yellow_min_phase_sec" value="2.0" />
+    <param name="yellow_max_phase_sec" value="2.5" />
+    <param name="global_path_csv" value="$(arg global_path_csv)" />
+    <param name="activation_radius_m" value="300.0" />
+    <param name="upstream_link_depth" value="3" />
+    <param name="signal_group_radius_m" value="25.0" />
+    <param name="signal_group_distance_tolerance_m" value="20.0" />
+    <param name="resend_sec" value="0.2" />
+    <rosparam param="phase_sequence">[16, 4, 1, 33, 4, 1]</rosparam>
+    <rosparam param="target_light_ids">["C1256W000016", "C1256W000018", "C1256W000052", "C1256W000077", "C1256W000091", "C1256W000123"]</rosparam>
+  </node>
+</launch>

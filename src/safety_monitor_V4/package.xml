@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>safety_monitor</name>
+  <version>0.2.0</version>
+  <description>
+    ACCA 2026 rear safety monitoring: rear LiDAR perception (C++), rear collision
+    monitor, sensor health monitor and E-STOP gate.
+  </description>
+  <maintainer email="jsh8588@gmail.com">Seonghun Jang</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>morai_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>pcl_conversions</depend>
+  <depend>pcl_ros</depend>
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>libpcl-all-dev</depend>
+
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>map_viz</exec_depend>
+
+  <exec_depend>velodyne_pointcloud</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>rosbag</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <test_depend>python3-pytest</test_depend>
+</package>

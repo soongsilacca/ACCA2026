@@ -1,0 +1,116 @@
+# Mounting pose supplied in MORAI (base_link -> rear_lidar).
+sensor_x: -0.82
+sensor_y: 0.0
+sensor_z: 0.22
+sensor_roll: 0.0
+sensor_pitch: 0.0
+sensor_yaw: 0.0
+
+# Ego-motion source: /localization/kinematic_state only.
+# Fallback odometry and EgoVehicleStatus pose inputs stay disabled.
+odom_topic: /localization/kinematic_state
+fallback_odom_topic: ""
+ego_status_topic: ""
+
+# Rear/adjacent-lane region in base_link.  base_link is at the rear axle in
+# this vehicle: rear bumper ~= -0.79 m, front bumper ~= +3.845 m.  The padded
+# self-filter therefore lies mostly in front of the origin.
+# Rear safety zone only: roughly 40 m behind and the ego/adjacent lanes.
+# Reducing this ROI also keeps clustering responsive enough for tracking.
+roi_min_x: -40.0
+roi_max_x: 1.5
+roi_min_y: -6.5
+roi_max_y: 6.5
+roi_min_z: -1.0
+roi_max_z: 4.0
+vehicle_min_x: -1.05
+vehicle_max_x: 4.10
+vehicle_min_y: -1.15
+vehicle_max_y: 1.15
+
+# Road plane removal after transforming the scan into base_link.
+ground_distance_threshold: 0.16
+ground_max_tilt_deg: 12.0
+# Existing front pipeline uses a 0.68 m LiDAR height while its base_link TF is
+# z=0.22, placing the road near z=-0.46 after conversion to base_link.
+expected_ground_z: -0.46
+ground_height_tolerance: 0.40
+ground_max_iterations: 120
+
+# Only large vertical planes are called walls.  This preserves ordinary car
+# side panels while rejecting barriers and building faces.
+wall_distance_threshold: 0.12
+wall_max_normal_z: 0.30
+wall_min_inliers: 60
+wall_min_length: 6.0
+wall_min_height: 0.50
+wall_bin_size: 0.50
+wall_min_occupancy_ratio: 0.50
+wall_max_planes: 3
+
+voxel_leaf_size: 0.20
+cluster_tolerance: 0.70
+cluster_range_scale: 0.010
+max_cluster_tolerance: 1.50
+min_cluster_points: 5
+max_cluster_points: 12000
+min_object_height: 0.20
+max_object_height: 4.0
+min_object_planar_size: 0.10
+max_object_length: 15.0
+max_object_width: 6.0
+sparse_detection_range: 30.0
+sparse_assumed_height: 0.80
+
+# Constant-velocity alpha-beta tracker.
+association_distance: 2.5
+track_alpha: 0.65
+track_beta: 0.20
+min_confirmed_hits: 2
+max_missed_frames: 5
+# Keep a temporarily occluded/out-of-FOV vehicle by dead reckoning.  This is
+# time based so changing the VLP-16 RPM does not change the safety horizon.
+max_coast_time: 2.0
+# Static/unconfirmed fragments do not need long dead reckoning.  Expiring them
+# quickly prevents a momentary wall association error from becoming a 2 s
+# moving ghost; confirmed moving vehicles still use max_coast_time above.
+max_static_coast_time: 0.30
+dynamic_speed_threshold: 0.8
+# Extra speed required while turning: scale * abs(yaw_rate) * range.  This
+# covers VLP-16 scan distortion and small pose/cluster timing errors, which
+# grow with range during a turn.
+turn_dynamic_speed_scale: 0.50
+# Small fragments and long wall/divider clusters are published as static
+# obstacles but never used for moving-vehicle dead reckoning.  The larger
+# horizontal extent is used, so a thin but wide rear-bumper return qualifies.
+min_dynamic_object_length: 0.8
+max_dynamic_object_length: 6.0
+# For a vehicle-shaped track in the rear collision corridor, evidence may span
+# one missed VLP-16 scan.  Road-edge fragments still decay on every miss, and
+# consecutive misses always decay, avoiding a sparse-scan speed bias without
+# retaining arbitrary clutter.
+dynamic_confirmation_hits: 4
+# During a significant turn, keep the general initial-confirmation lockout for
+# wall/divider fragments.  A close, compact object in the rear collision
+# corridor may still confirm with the stricter hit count below so a vehicle
+# cutting in while ego steers is not hidden from dead reckoning.
+max_dynamic_confirmation_yaw_rate: 0.08
+turn_dynamic_confirmation_hits: 6
+# A track confirmed dynamic before a turn keeps its evidence while yaw-rate is
+# above max_dynamic_confirmation_yaw_rate (lane changes exceed 0.08 rad/s).
+keep_confirmed_during_turn: true
+turn_safety_max_range: 15.0
+turn_safety_max_lateral_offset: 3.5
+turn_vehicle_min_width: 0.8
+turn_vehicle_max_length: 4.5
+turn_vehicle_min_height: 0.5
+turn_vehicle_max_height: 2.8
+prediction_horizon: 4.0
+prediction_dt: 0.5
+max_odom_age: 0.5
+
+enable_ground_filter: true
+# Reject large continuous vertical infrastructure before clustering.  The 6 m
+# minimum length preserves normal passenger vehicles.
+enable_wall_filter: true
+publish_debug_clouds: false

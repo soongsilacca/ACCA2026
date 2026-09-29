@@ -233,7 +233,7 @@ rostopic echo /privileged_expert/teacher_labels
 6. traffic light와 controlled link를 직접 연결해 교차로 매칭 강화
 7. stop sign, junction priority, parked vehicle, blocked-route recovery 추가
 8. PDM progress/comfort score를 upstream 설정값과 정밀 비교
-9. rosbag replay와 collision/latency/success 자동 평가 도구 추가
+9. rosbag replay 기반 offline 재평가 도구 추가
 10. teacher label dataset schema 고정 및 학습 파이프라인 연결
 11. 장시간 주행 회귀 테스트 추가
 
@@ -246,3 +246,40 @@ rostopic echo /privileged_expert/teacher_labels
   `control_traffic_lights:=false`로 실행해야 한다.
 - CARLA runtime 전체가 아니라 PDM-Lite planning primitive의 MORAI 포팅본이다.
   upstream CARLA API와 ScenarioRunner는 직접 실행하지 않는다.
+
+## Closed-loop 모델 평가
+
+TCP, SimLingo, TransFuser에 공통으로 사용할 수 있는 온라인 평가 로거다. 자동
+에피소드 관리자의 `LOADED` 상태에서 run을 시작하고 다음 ScenarioLoad의
+`reason`을 받아 이전 run을 종료한다.
+
+```bash
+source ~/acca_ws/devel/setup.bash
+roslaunch morai_privileged_expert closed_loop_evaluation.launch \
+  model_name:=TCP seed:=2026
+```
+
+자동 scenario 반복은 모델 런치와 별도 터미널에서 expert를 제외하고 실행한다.
+
+```bash
+roslaunch morai_privileged_expert auto_episode.launch \
+  launch_expert:=false scenario_seed_base:=2026
+```
+
+모델 이름만 `SimLingo`, `TransFuser`로 바꾸고 동일 scenario/seed를 반복한다.
+결과는 기본적으로 `~/acca_ws/closed_loop_results`에 저장된다.
+
+- `<model>_<episode>/timeseries.csv`: pose, control, route progress, CTE,
+  collision, traffic light, obstacle, behavior, inference latency
+- `summary.csv`: run별 completion/success/failure 요약
+- `aggregate.csv`, `model_comparison.png`: 모델별 집계와 비교 그래프
+
+집계 명령:
+
+```bash
+rosrun morai_privileged_expert summarize_closed_loop.py \
+  ~/acca_ws/closed_loop_results
+```
+
+모델별로 최소 5회, 가능하면 10회 실행한다. 공정한 비교를 위해 map, 시작 pose,
+장애물 배치, 신호 초기 상태와 seed를 동일하게 유지해야 한다.

@@ -1,0 +1,163 @@
+[
+  {
+    "controller": "stanley",
+    "pose_source": "ego status",
+    "route_source": "bag /global_path",
+    "duration_s": 150.0468716621399,
+    "route_length_m": 2184.6117196154787,
+    "start_progress_m": 151.9372086772459,
+    "furthest_progress_m": 2109.151169852882,
+    "route_completion_nearest_projection_pct": 96.54581411035007,
+    "start_xy": [
+      -121.33990478515625,
+      -305.2022399902344
+    ],
+    "end_xy": [
+      -157.5828857421875,
+      -497.02716064453125
+    ],
+    "mean_cte_m": 0.8227697196346032,
+    "max_cte_m": 2.8538993205691825,
+    "p95_cte_m": 1.4775104467004667,
+    "mean_abs_speed_kph": 47.50501936319411,
+    "max_abs_speed_kph": 94.51205444335938,
+    "collision_nonzero_messages": 1076,
+    "collision_bursts_1s": 2,
+    "collision_ids": [
+      "(1, 21)",
+      "(1, 35)",
+      "(1, 38)"
+    ],
+    "teleport_candidates": 0,
+    "manual_mode_samples": 0,
+    "mean_inference_ms": 11.601393720985456,
+    "p95_inference_ms": 21.01145029067993,
+    "missing_event_topics": [
+      "object",
+      "traffic",
+      "scenario",
+      "recovery"
+    ],
+    "reported_route_completion_pct": 96.54581411035007,
+    "route_completion_source": "bag nearest projection"
+  },
+  {
+    "controller": "MPC",
+    "pose_source": "localization (GT absent)",
+    "route_source": "bag /global_path",
+    "duration_s": 130.3403868675232,
+    "route_length_m": 2184.6117196154787,
+    "start_progress_m": 82.51387386314697,
+    "furthest_progress_m": 1528.620952198579,
+    "route_completion_nearest_projection_pct": 69.97220322829894,
+    "start_xy": [
+      -95.41437243534789,
+      -355.49612551990094
+    ],
+    "end_xy": [
+      69.5695803660157,
+      -152.41961643941457
+    ],
+    "mean_cte_m": 0.9068398553248709,
+    "max_cte_m": 3.7455531951490713,
+    "p95_cte_m": 2.389947793121803,
+    "mean_abs_speed_kph": 39.9742879507574,
+    "max_abs_speed_kph": 87.68397837881218,
+    "collision_nonzero_messages": 0,
+    "collision_bursts_1s": 0,
+    "collision_ids": [],
+    "teleport_candidates": 0,
+    "manual_mode_samples": null,
+    "mean_inference_ms": 11.451254098118463,
+    "p95_inference_ms": 18.929588890075678,
+    "missing_event_topics": [
+      "object",
+      "traffic",
+      "scenario",
+      "recovery"
+    ],
+    "reported_route_completion_pct": 69.97220322829894,
+    "route_completion_source": "bag nearest projection"
+  },
+  {
+    "controller": "model",
+    "pose_source": "ego status",
+    "route_source": "bag /global_path",
+    "duration_s": 213.54294419288635,
+    "route_length_m": 2184.6117196154787,
+    "start_progress_m": 35.517659595951876,
+    "furthest_progress_m": 1541.6441347591665,
+    "route_completion_nearest_projection_pct": 70.56833582447854,
+    "start_xy": [
+      -114.33501434326172,
+      -397.34197998046875
+    ],
+    "end_xy": [
+      69.95825958251953,
+      -166.19300842285156
+    ],
+    "mean_cte_m": 0.4979226808830926,
+    "max_cte_m": 2.600756377516015,
+    "p95_cte_m": 0.9532756189990006,
+    "mean_abs_speed_kph": 25.600481743414715,
+    "max_abs_speed_kph": 64.18135833740234,
+    "collision_nonzero_messages": 561,
+    "collision_bursts_1s": 1,
+    "collision_ids": [
+      "(1, 35)"
+    ],
+    "teleport_candidates": 0,
+    "manual_mode_samples": 0,
+    "mean_inference_ms": 11.01645479391842,
+    "p95_inference_ms": 18.048266983032224,
+    "missing_event_topics": [
+      "object",
+      "traffic",
+      "scenario",
+      "recovery"
+    ],
+    "reported_route_completion_pct": 100.0,
+    "route_completion_source": "user-confirmed completion; bag stopped early"
+  },
+  {
+    "controller": "PP",
+    "pose_source": "ego status",
+    "route_source": "bag /global_path",
+    "duration_s": 164.82355546951294,
+    "route_length_m": 2184.6117196154787,
+    "start_progress_m": 81.48528804746404,
+    "furthest_progress_m": 1526.9766735364956,
+    "route_completion_nearest_projection_pct": 69.89693682524344,
+    "start_xy": [
+      -93.56694030761719,
+      -356.26727294921875
+    ],
+    "end_xy": [
+      68.77662658691406,
+      -151.5807647705078
+    ],
+    "mean_cte_m": 1.644566863877188,
+    "max_cte_m": 6.0003908823368395,
+    "p95_cte_m": 4.281194811185256,
+    "mean_abs_speed_kph": 32.27941495103829,
+    "max_abs_speed_kph": 94.25421905517578,
+    "collision_nonzero_messages": 855,
+    "collision_bursts_1s": 2,
+    "collision_ids": [
+      "(0, 3)",
+      "(1, 18)"
+    ],
+    "teleport_candidates": 0,
+    "manual_mode_samples": 0,
+    "mean_inference_ms": 10.909896740285527,
+    "p95_inference_ms": 17.453429412841796,
+    "missing_event_topics": [
+      "object",
+      "traffic",
+      "scenario",
+      "recovery"
+    ],
+    "reported_route_completion_pct": 69.89693682524344,
+    "route_completion_source": "bag nearest projection"
+  }
+]

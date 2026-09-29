@@ -71,6 +71,14 @@ class MoraiUpstreamPDM:
         self.static_avoid_clearance = float(rospy.get_param("~static_avoid_clearance_m", 1.5))
         self.static_avoid_max_lane_factor = float(rospy.get_param("~static_avoid_max_lane_factor", 2.0))
         self.static_avoid_speed = float(rospy.get_param("~static_avoid_speed_mps", 5.0))
+        # The left side of the post-left-turn approach to the roundabout is
+        # bounded by a guardrail.  In this route interval an ordinary
+        # obstacle-on-right decision would move the route into that rail, so
+        # all static avoidance is constrained to the route's right side.
+        self.guardrail_right_only_start = int(rospy.get_param(
+            "~guardrail_right_only_start_index", 6119))
+        self.guardrail_right_only_end = int(rospy.get_param(
+            "~guardrail_right_only_end_index", 8851))
         self.pedestrian_hazard_full_stop = bool(rospy.get_param("~pedestrian_hazard_full_stop", True))
         self.pedestrian_caution_horizon = float(rospy.get_param("~pedestrian_caution_horizon_sec", 6.0))
         self.pedestrian_caution_clearance = float(rospy.get_param("~pedestrian_caution_clearance_m", 3.5))
@@ -85,6 +93,11 @@ class MoraiUpstreamPDM:
             rospy.get_param("~npc_max_yaw_rate_deg_sec", 55.0)))
         self.npc_turn_min_speed = float(rospy.get_param(
             "~npc_turn_min_speed_mps", 0.5))
+        self.roundabout_short_forecast_sec = float(rospy.get_param(
+            "~roundabout_approach_vehicle_forecast_sec", 0.8))
+        self.roundabout_approach_bounds = tuple(float(value) for value in
+            rospy.get_param("~roundabout_approach_bounds",
+                            [-110.0, -75.0, 300.0, 340.0]))
         self.goal_slowdown_distance = float(
             rospy.get_param("~goal_slowdown_distance_m", 20.0))
         self.goal_stop_distance = float(
@@ -450,11 +463,25 @@ class MoraiUpstreamPDM:
                         lateral <= self.static_avoid_lateral_tolerance + projected_half_width):
                     offset = np.asarray([actor.get_location().x, actor.get_location().y]) - planner.original_route_points[route_idx, :2]
                     side = tangent[0]*offset[1] - tangent[1]*offset[0]
-                    direction = "left" if side > 0 else "right"
                     signed_lateral = float(offset.dot(normal))
-                    required_shift = max(
-                        0.0, projected_half_width + hero.bounding_box.extent.y +
-                        self.static_avoid_clearance - abs(signed_lateral))
+                    guardrail_right_only = (
+                        self.guardrail_right_only_start <= route_idx <=
+                        self.guardrail_right_only_end)
+                    if guardrail_right_only:
+                        # Upstream's argument names the obstacle side, not the
+                        # desired shift side.  "left" therefore means shift
+                        # the route right.  Include a negative (right-side)
+                        # obstacle offset in the required displacement so the
+                        # shifted route clears its outside edge.
+                        direction = "left"
+                        required_shift = max(
+                            0.0, -signed_lateral + projected_half_width +
+                            hero.bounding_box.extent.y + self.static_avoid_clearance)
+                    else:
+                        direction = "left" if side > 0 else "right"
+                        required_shift = max(
+                            0.0, projected_half_width + hero.bounding_box.extent.y +
+                            self.static_avoid_clearance - abs(signed_lateral))
                     lane_width = max(float(planner.route_waypoints[route_idx].lane_width), 0.1)
                     lane_factor = min(self.static_avoid_max_lane_factor,
                                       max(1.0, required_shift / lane_width))
@@ -470,10 +497,11 @@ class MoraiUpstreamPDM:
                         transition_length=agent.config.transition_smoothness_distance,
                         lane_transition_factor=lane_factor)
                     extent.x = original_half_length
-                    rospy.loginfo("Static AVOID id=%d size=%.1fx%.1fm lateral=%.1fm shift=%.1fm (%.2f lanes)",
+                    rospy.loginfo("Static AVOID id=%d size=%.1fx%.1fm lateral=%.1fm shift=%.1fm (%.2f lanes)%s",
                                   actor.id, 2.0*projected_half_length,
                                   2.0*projected_half_width, signed_lateral,
-                                  lane_width*lane_factor, lane_factor)
+                                  lane_width*lane_factor, lane_factor,
+                                  " RIGHT_ONLY_GUARDRAIL" if guardrail_right_only else "")
                     self.processed_static_ids.add(actor.id)
                     break
 
@@ -785,6 +813,19 @@ class MoraiUpstreamPDM:
                 self.agent._waypoint_planner.speed_limits[:] = max(self.speed_limit, .1)
                 self._update_world(odom, ego, objects); self._update_lights()
                 imu=np.asarray([0.,0.,self._yaw(odom)])
+                # The stock two-second vehicle forecast is too speculative at
+                # this roundabout entrance: circulating actors repeatedly
+                # graze the future ego boxes and alternate STOP/DRIVE before
+                # ego reaches the merge. Use a short horizon only in the
+                # mapped approach; genuinely close conflicts still brake.
+                min_x, max_x, min_y, max_y = self.roundabout_approach_bounds
+                ego_x = float(odom.pose.pose.position.x)
+                ego_y = float(odom.pose.pose.position.y)
+                in_roundabout_approach = (
+                    min_x <= ego_x <= max_x and min_y <= ego_y <= max_y)
+                self.agent.config.default_forecast_length = (
+                    self.roundabout_short_forecast_sec
+                    if in_roundabout_approach else 2.0)
                 _, data=self.agent._get_control({"imu":(None,imu)}, plant=False)
                 route=np.asarray(self.agent.remaining_route)
                 planner = self.agent._waypoint_planner

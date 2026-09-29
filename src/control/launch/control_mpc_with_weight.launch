@@ -26,14 +26,14 @@
        default="$(env HOME)/acca_ws/global_path/global_path.csv" />
 
   <!-- Standalone global-path mode: sensors, TF, localization and MGeo route. -->
-  <group if="$(arg launch_stack)">
+  <!-- <group if="$(arg launch_stack)">
     <include file="$(find multimodal_learning)/launch/multimodal_sensors.launch">
       <arg name="use_sim_time" value="$(arg use_sim_time)" />
       <arg name="global_path_csv" value="$(arg global_path_csv)" />
       <arg name="record_bag" value="false" />
       <arg name="enable_ctrl_sender" value="true" />
     </include>
-  </group>
+  </group> -->
 
   <!-- Adaptive weight publisher -->
   <node pkg="control" type="adaptive_weight.py" name="adaptive_weight" output="screen">

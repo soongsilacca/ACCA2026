@@ -3,7 +3,7 @@
   <arg name="use_sim_time" default="false" />
   <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" />
   <arg name="ego_status_port" default="9011" />
-  <arg name="device_ip" default="" />
+  <arg name="device_ip" default="127.0.0.1" />
   <arg name="velodyne_port" default="2368" />
   <arg name="velodyne_frame" default="velodyne" />
   <arg name="velodyne_rpm" default="900.0" />

@@ -6,15 +6,25 @@
   <arg name="reload_on_collision" default="true" />
   <arg name="rviz" default="true" />
   <arg name="network_autoconnect" default="true" />
+  <arg name="load_network" default="true" />
   <arg name="simulator_watchdog" default="true" />
   <arg name="auto_record" default="true" />
   <arg name="bag_directory" default="$(env HOME)/acca_ws/tcp_teacher_bags" />
   <arg name="episode_timeout_sec" default="900.0" />
   <arg name="minimum_free_gb" default="5.0" />
+  <arg name="launch_expert" default="true" />
+  <!-- Set >=0 for repeatable model evaluation. Episode N uses base+N. -->
+  <arg name="scenario_seed_base" default="-1" />
 
-  <include file="$(find morai_privileged_expert)/launch/expert.launch">
+  <include if="$(arg launch_expert)"
+           file="$(find morai_privileged_expert)/launch/expert.launch">
     <arg name="global_path_csv" value="$(arg global_path_csv)" />
     <arg name="rviz" value="$(arg rviz)" />
+  </include>
+
+  <include unless="$(arg launch_expert)"
+           file="$(find morai_privileged_expert)/launch/evaluation_inputs.launch">
+    <arg name="global_path_csv" value="$(arg global_path_csv)" />
   </include>
 
   <node pkg="morai_udp_bridge" type="scenario_episode_manager_node.py"
@@ -22,12 +32,14 @@
     <param name="input_scene" value="$(arg input_scene)" />
     <param name="output_scene" value="$(arg output_scene)" />
     <param name="global_path_csv" value="$(arg global_path_csv)" />
+    <param name="ground_truth_topic"
+           value="$(eval '/teacher/ground_truth_state' if arg('launch_expert') else '/localization/kinematic_state')" />
     <param name="network_setting_file" value="$(arg network_setting_file)" />
-    <param name="load_network" value="true" />
+    <param name="load_network" value="$(arg load_network)" />
     <!-- Preserve the currently connected UDP endpoints during every reset.
          final_Net.json is still copied intact into the scenario profile. -->
     <param name="scenario_load_network" value="false" />
-    <param name="auto_connect_network" value="true" />
+    <param name="auto_connect_network" value="$(arg network_autoconnect)" />
     <param name="ip" value="127.0.0.1" />
     <param name="port" value="9095" />
     <param name="departure_radius_m" value="30.0" />
@@ -41,6 +53,10 @@
     <param name="reload_max_attempts" value="5" />
     <param name="reload_on_collision" value="$(arg reload_on_collision)" />
     <param name="collision_actor_distance_m" value="10.0" />
+    <!-- Preserve useful pre-collision teacher data, but remove the final
+         failure approach and impact from the saved bag. -->
+    <param name="keep_collision_bag" value="true" />
+    <param name="collision_trim_tail_sec" value="20.0" />
     <!-- MORAI reports NPC spawn-overlap collisions as scene-wide events. -->
     <param name="spawn_collision_ignore_radius_m" value="5.0" />
     <param name="impact_fallback_enabled" value="true" />
@@ -57,6 +73,7 @@
     <param name="bag_split_size_mb" value="4096" />
     <param name="bag_buffer_mb" value="2048" />
     <param name="minimum_free_gb" value="$(arg minimum_free_gb)" />
+    <param name="scenario_seed_base" value="$(arg scenario_seed_base)" />
     <param name="simulator_watchdog_enabled" value="$(arg simulator_watchdog)" />
     <!-- Allow the GUI bootstrap Connect to enable the ScenarioLoad UDP
          subscriber before the first load packet is sent. -->

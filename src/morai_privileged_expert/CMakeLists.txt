@@ -8,6 +8,8 @@ catkin_install_python(PROGRAMS
   scripts/morai_carla_compat.py
   scripts/upstream_pdm_loader.py
   scripts/morai_upstream_pdm_node.py
+  scripts/closed_loop_evaluator_node.py
+  scripts/summarize_closed_loop.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 install(DIRECTORY launch config DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

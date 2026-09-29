@@ -1,0 +1,52 @@
+<launch>
+  <!-- multimodal_learning 주행 스택 + 후방 안전 감시
+       명령 경로: 모델/MPC -/ctrl_cmd_raw-> estop_gate -/ctrl_cmd-> morai_ego_ctrl_sender -> MORAI
+
+       센서/송신기(multimodal_sensors.launch)는 remap 밖에서 띄운다.
+       remap 그룹 안에 두면 morai_ego_ctrl_sender 도 /ctrl_cmd_raw 를 구독해 gate 를 우회한다.
+
+       model: inference(Planner V2) | tcp_inference | simlingo_inference | transfuser_inference
+       예) roslaunch safety_monitor multimodal_safety.launch model:=tcp_inference -->
+  <arg name="model" default="tcp_inference" />
+  <arg name="model_rviz" default="true" />
+  <arg name="safety_rviz" default="false" />
+
+  <!-- 모델 스택 센서 -->
+  <!-- <arg name="use_sim_time" default="false" />
+  <arg name="global_path_csv" default="$(env HOME)/acca_ws/global_path/global_path.csv" /> -->
+  <!-- <arg name="ego_status_port" default="9011" /> -->
+  <!-- <arg name="front_velodyne_port" default="2368" /> -->
+
+  <!-- MORAI의 단일 LiDAR(/velodyne_points)를 안전 인지가 공유한다. -->
+  <!-- <arg name="rear_lidar_port" default="2368" /> -->
+  <arg name="mgeo_path" default="$(find map_viz)/scripts" />
+
+  <arg name="cmd_raw" default="/ctrl_cmd_raw" />
+  <arg name="cmd_out" default="/ctrl_cmd" />
+
+  <!-- <include file="$(find multimodal_learning)/launch/multimodal_sensors.launch">
+    <arg name="use_sim_time" value="$(arg use_sim_time)" />
+    <arg name="global_path_csv" value="$(arg global_path_csv)" />
+    <arg name="ego_status_port" value="$(arg ego_status_port)" />
+    <arg name="velodyne_port" value="$(arg front_velodyne_port)" />
+    <arg name="enable_ctrl_sender" value="true" />
+  </include> -->
+
+  <group>
+    <remap from="/ctrl_cmd" to="$(arg cmd_raw)" />
+    <include file="$(find multimodal_learning)/launch/$(arg model).launch">
+      <arg name="launch_sensors" value="true" />
+      <arg name="rviz" value="$(arg model_rviz)" />
+    </include>
+  </group>
+
+  <include file="$(find safety_monitor)/launch/bringup.launch">
+    <!-- <arg name="mgeo_path" value="$(arg mgeo_path)" /> -->
+    <!-- <arg name="destination_port" value="$(arg rear_lidar_port)" /> -->
+    <!-- <arg name="launch_driver" value="false" /> -->
+    <arg name="lidar_topic" value="/velodyne_points" />
+    <arg name="cmd_in" value="$(arg cmd_raw)" />
+    <arg name="cmd_out" value="$(arg cmd_out)" />
+    <!-- <arg name="rviz" value="$(arg safety_rviz)" /> -->
+  </include>
+</launch>

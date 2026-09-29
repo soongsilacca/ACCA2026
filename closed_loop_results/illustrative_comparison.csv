@@ -1,0 +1,4 @@
+data_origin,model,runs,route_completion,collision_rate,signal_success,static_avoid_success,dynamic_stop_success,mean_cte_m,mean_latency_ms,p95_latency_ms
+illustrative_not_measured,TCP,10,0.92,0.10,0.90,0.80,0.90,0.34,13.08,21.22
+illustrative_not_measured,SimLingo,10,0.78,0.20,0.80,0.60,0.80,0.48,81.44,88.77
+illustrative_not_measured,TransFuser,10,0.72,0.30,0.70,0.60,0.70,0.57,16.56,22.60

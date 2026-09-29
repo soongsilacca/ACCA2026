@@ -1,0 +1,18 @@
+<launch>
+  <!-- 보고서 캡처용: 인지 파라미터는 그대로 두고 디버그 점군, ROI 표시, 전용 RViz 배치만 켠다. -->
+  <arg name="device_ip" default="" />
+  <arg name="destination_port" default="2368" />
+  <arg name="launch_driver" default="true" />
+  <arg name="input_topic" default="/rear_lidar/points_raw" />
+
+  <include file="$(find safety_monitor)/launch/rear_lidar.launch">
+    <arg name="device_ip" value="$(arg device_ip)" />
+    <arg name="destination_port" value="$(arg destination_port)" />
+    <arg name="launch_driver" value="$(arg launch_driver)" />
+    <arg name="input_topic" value="$(arg input_topic)" />
+    <arg name="rviz" value="true" />
+    <arg name="rviz_config" value="$(find safety_monitor)/config/rviz/rear_lidar_report.rviz" />
+    <arg name="publish_debug_clouds" value="true" />
+    <arg name="publish_report_geometry" value="true" />
+  </include>
+</launch>

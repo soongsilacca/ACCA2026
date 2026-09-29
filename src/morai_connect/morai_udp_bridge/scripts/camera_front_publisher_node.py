@@ -11,7 +11,7 @@ from std_msgs.msg import Header
 from lib.network.UDP import Receiver
 from lib.define.Camera import Camera
 
-IP       = '127.0.0.1'
+IP       = '0.0.0.0'
 PORT     = 9291
 TOPIC    = '/camera/front/image_raw'
 FRAME_ID = 'camera_front'

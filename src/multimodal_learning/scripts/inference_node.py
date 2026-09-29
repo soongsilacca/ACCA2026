@@ -5,6 +5,7 @@ import os
 from pathlib import PosixPath
 import sys
 import threading
+import time
 
 import message_filters
 import numpy as np
@@ -247,6 +248,11 @@ class InferenceNode:
         self.runtime_action_publisher = rospy.Publisher(
             "/multimodal_learning/runtime_action",
             String,
+            queue_size=1,
+        )
+        self.latency_publisher = rospy.Publisher(
+            "/multimodal_learning/inference_latency_ms",
+            Float32,
             queue_size=1,
         )
         self.last_announced_runtime_action = None
@@ -794,10 +800,17 @@ class InferenceNode:
             goal_point = goal_point_m / np.asarray([30.0, 15.0], np.float32)
             goal_tensor = self.tensor(goal_point.astype(np.float32)).float()
 
+            if self.device.type == "cuda":
+                torch.cuda.synchronize(self.device)
+            inference_started = time.perf_counter()
             output = self.model(
                 history[0], history[1], history[2], history[3],
                 goal_tensor,
             )
+            if self.device.type == "cuda":
+                torch.cuda.synchronize(self.device)
+            inference_ms = (time.perf_counter() - inference_started) * 1000.0
+            self.latency_publisher.publish(Float32(inference_ms))
             rospy.loginfo_once("Planner V17 first forward completed")
             action_probabilities = (
                 output["action_probabilities"][0]

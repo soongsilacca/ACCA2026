@@ -184,16 +184,17 @@ class MGeoRoutePublisher:
         ))
 
     def build_speed_profile(self):
-        """Combine MGeo link limits with global-path curvature limits."""
+        """Combine fixed road-class speeds with global-path curvature limits."""
         tree = cKDTree(self.map_points)
         _distance, nearest = tree.query(self.global_path, k=1)
-        link_speed = self.map_attributes[nearest, 6]
+        # Do not command each MGeo link's numeric max_speed. The road-class
+        # flag only selects the configured policy speed: regular or highway.
+        highway = self.map_attributes[nearest, 5] > 0.5
         profile = np.where(
-            np.isfinite(link_speed) & (link_speed > 0.0),
-            link_speed,
+            highway,
+            self.speed_cap_mps,
             self.default_speed_mps,
         )
-        profile = np.minimum(profile, self.speed_cap_mps)
 
         closed = (
             len(self.global_path) > 2

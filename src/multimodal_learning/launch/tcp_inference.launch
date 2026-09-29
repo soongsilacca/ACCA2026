@@ -5,7 +5,7 @@
   <arg name="global_path_csv"
        default="$(env HOME)/acca_ws/global_path/global_path.csv" />
   <arg name="ego_status_port" default="9011" />
-  <arg name="device_ip" default="" />
+  <arg name="device_ip" default="127.0.0.1" />
   <arg name="velodyne_port" default="2368" />
   <arg name="velodyne_frame" default="velodyne" />
   <arg name="velodyne_rpm" default="900.0" />
@@ -18,13 +18,15 @@
   <arg name="launch_controller" default="false" />
   <!-- Use the full TCP Beta-policy output for accel/brake/steer. -->
   <arg name="direct_control" default="true" />
-  <arg name="direct_steer_gain" default="1.8" />
+  <arg name="use_model_stop" default="false" />
+  <arg name="direct_steer_gain" default="1.6" />
+  <arg name="model_input_min_speed_kph" default="1.0" />
   <!-- Follow the full-TCP trajectory with the existing Stanley controller. -->
-  <arg name="controller_mode" default="stanley" />
+  <arg name="controller_mode" default="pp" />
   <arg name="mpc_path_topic"
        default="/local_route" />
   <arg name="mpc_path_input_topic"
-       default="/multimodal_learning/control_path" />
+       default="/multimodal_learning/predicted_path" />
   <arg name="mpc_path_start_index" default="2" />
   <arg name="mpc_target_velocity_topic" default="/target_velocity" />
   <arg name="ai_path_timeout" default="1.5" />
@@ -48,10 +50,14 @@
   <arg name="artifact_zip"
        default="$(find multimodal_learning)/model_artifacts/tcp_full/tcp_morai_finetune.zip" />
   <arg name="checkpoint_path"
-       default="/media/acca/b4bc958b-d82f-4611-96bd-67d55146f5bf/home/libok/training_outputs/tcp_teacher_full_policy_v6_command_fixed_best_ep28/best.pt" />
+       default="$(find multimodal_learning)/model_artifacts/tcp_full/tcp_final_epoch026_best.pt" />
+  <arg name="command_map_link_file"
+       default="$(find multimodal_learning)/model_artifacts/tcp_full/command_map/link_set.json" />
+  <arg name="command_lookahead_m" default="30.0" />
+  <arg name="command_map_max_distance_m" default="5.0" />
   <arg name="camera_topic" default="/camera/front/image/compressed" />
   <arg name="use_cuda" default="true" />
-  <arg name="model_inference_period" default="0.1" />
+  <arg name="model_inference_period" default="0.03" />
   <arg name="planning_publish_hz" default="20.0" />
   <arg name="prediction_timeout" default="1.0" />
   <arg name="path_spacing" default="0.1" />
@@ -87,10 +93,17 @@
         output="screen">
     <param name="artifact_zip" value="$(arg artifact_zip)" />
     <param name="checkpoint_path" value="$(arg checkpoint_path)" />
+    <param name="command_map_link_file"
+           value="$(arg command_map_link_file)" />
+    <param name="command_lookahead_m" value="$(arg command_lookahead_m)" />
+    <param name="command_map_max_distance_m"
+           value="$(arg command_map_max_distance_m)" />
     <param name="camera_topic" value="$(arg camera_topic)" />
     <param name="use_cuda" value="$(arg use_cuda)" />
     <param name="direct_control" value="$(arg direct_control)" />
+    <param name="use_model_stop" value="$(arg use_model_stop)" />
     <param name="direct_steer_gain" value="$(arg direct_steer_gain)" />
+    <param name="model_input_min_speed_kph" value="$(arg model_input_min_speed_kph)" />
     <param name="model_inference_period" value="$(arg model_inference_period)" />
     <param name="planning_publish_hz" value="$(arg planning_publish_hz)" />
     <param name="prediction_timeout" value="$(arg prediction_timeout)" />

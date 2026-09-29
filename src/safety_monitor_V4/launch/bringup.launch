@@ -1,0 +1,37 @@
+<launch>
+  <!-- 후방 안전 감시 전체: 인지 + 충돌 판정 + 센서 신호 감시 + E-STOP gate
+       기본 MGeo: map_viz/scripts/link_set.json
+       다른 맵은 mgeo_path:=<link_set.json 폴더> 로 재정의한다.
+       제어기 출력은 /ctrl_cmd_raw 로 remap 해야 한다. -->
+  <arg name="mgeo_path" default="$(find map_viz)/scripts" />
+  <arg name="ego_topic" default="/localization/kinematic_state" />
+  <arg name="route_topic" default="/local_route" />
+  <arg name="imu_topic" default="/imu" />
+  <arg name="cmd_in" default="/ctrl_cmd_raw" />
+  <arg name="cmd_out" default="/ctrl_cmd" />
+  <arg name="destination_port" default="2368" />
+  <arg name="launch_driver" default="false" />
+  <arg name="lidar_topic" default="/velodyne_points" />
+  <arg name="rviz" default="false" />
+
+  <include file="$(find safety_monitor)/launch/rear_lidar.launch">
+    <arg name="destination_port" value="$(arg destination_port)" />
+    <arg name="launch_driver" value="$(arg launch_driver)" />
+    <arg name="input_topic" value="$(arg lidar_topic)" />
+    <arg name="odom_topic" value="$(arg ego_topic)" />
+    <arg name="fallback_odom_topic" value="" />
+    <arg name="ego_status_topic" value="" />
+    <arg name="rviz" value="$(arg rviz)" />
+  </include>
+
+  <include file="$(find safety_monitor)/launch/safety_monitor.launch">
+    <arg name="mgeo_path" value="$(arg mgeo_path)" />
+    <arg name="ego_topic" value="$(arg ego_topic)" />
+    <arg name="ego_source" value="odometry" />
+    <arg name="route_topic" value="$(arg route_topic)" />
+    <arg name="imu_topic" value="$(arg imu_topic)" />
+    <arg name="lidar_topic" value="$(arg lidar_topic)" />
+    <arg name="cmd_in" value="$(arg cmd_in)" />
+    <arg name="cmd_out" value="$(arg cmd_out)" />
+  </include>
+</launch>

@@ -10,7 +10,7 @@ from std_msgs.msg import Header
 from lib.network.UDP import Receiver
 from lib.define.GPS import GPS
 
-IP       = '127.0.0.1'
+IP       = '0.0.0.0'
 PORT     = 9090
 TOPIC    = '/gps'
 FRAME_ID = 'gps'
