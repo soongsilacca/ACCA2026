@@ -3,6 +3,8 @@
 차선 0: y = 0, 차선 1(목표): y = 3.5. 모두 +x 방향. 각 차선은 link 두 개로 나뉘어
 node로 연결되어 있어 chain 이어 붙이기도 함께 확인한다.
 """
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -62,11 +64,16 @@ def new_monitor(**kw):
 EGO = EgoState(0.0, 0.0, 0.0, 0.0, 10.0)
 
 
-def run(mon, frames, ego=EGO, route=None, dt=0.137):
+def run(mon, frames, ego=EGO, route=None, dt=0.137, advance=True):
+    """advance: 프레임 i의 차량 위치를 자차 대비 상대속도로 i*dt만큼 옮긴다.
+    속도는 차선 방향 위치 변화로 추정하므로 위치와 속도가 맞아야 한다."""
     route = lane_change_route() if route is None else route
     out = []
     for i, objs in enumerate(frames):
-        out.append(mon.step(i * dt, ego, route, objs))
+        t = i * dt
+        if advance:
+            objs = [replace(o, x=o.x + (o.vx - ego.speed) * t, y=o.y + o.vy * t) for o in objs]
+        out.append(mon.step(t, ego, route, objs))
     return out
 
 
@@ -134,10 +141,10 @@ def test_release_after_five_clear_frames():
 
 def test_pass_hold_keeps_stop_after_tracking_lost():
     mon = new_monitor()
-    frames = [
-        [car(1, -3.0, 3.5, 12.0)],
-        [car(1, -1.6, 3.5, 12.0)],
-        [car(1, -1.3, 3.5, 12.0, coasting=True)],   # 관측 끊김
+    frames = [                                       # 상대속도 2 m/s로 다가옴
+        [car(1, -1.9, 3.5, 12.0)],
+        [car(1, -1.9, 3.5, 12.0)],
+        [car(1, -1.9, 3.5, 12.0, coasting=True)],   # 관측 끊김
         [],                                          # 트랙 삭제
         [], [], [], [], [], [],
     ]
@@ -149,7 +156,7 @@ def test_pass_hold_keeps_stop_after_tracking_lost():
 
 def test_pass_hold_released_by_time():
     mon = new_monitor(hold_max=1.0)
-    frames = [[car(1, -1.6, 3.5, 12.0)], [car(1, -1.3, 3.5, 12.0, coasting=True)]] + [[]] * 12
+    frames = [[car(1, -1.6, 3.5, 12.0)], [car(1, -1.6, 3.5, 12.0, coasting=True)]] + [[]] * 12
     res = run(mon, frames)
     assert res[1].holds == [1]
     assert res[-1].holds == []
@@ -158,7 +165,7 @@ def test_pass_hold_released_by_time():
 
 def test_pass_hold_not_triggered_when_far():
     mon = new_monitor()
-    frames = [[car(1, -15.0, 3.5, 11.0)], [car(1, -14.0, 3.5, 11.0, coasting=True)], []]
+    frames = [[car(1, -15.0, 3.5, 11.0)], [car(1, -15.0, 3.5, 11.0, coasting=True)], []]
     res = run(mon, frames)
     assert all(r.holds == [] for r in res)
 

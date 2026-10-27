@@ -25,14 +25,18 @@ _MATCH_STEP = 0.5
 
 class Link:
     __slots__ = ("idx", "points", "from_node", "to_node", "length",
-                 "start_heading", "end_heading")
+                 "start_heading", "end_heading", "link_type", "left_dst", "right_dst")
 
-    def __init__(self, idx, points, from_node=None, to_node=None):
+    def __init__(self, idx, points, from_node=None, to_node=None,
+                 link_type=None, left_dst=None, right_dst=None):
         pts = np.asarray(points, dtype=float)[:, :2]
         self.idx = str(idx)
         self.points = pts
         self.from_node = from_node
         self.to_node = to_node
+        self.link_type = None if link_type is None else str(link_type)   # "1": 교차로 연결 link
+        self.left_dst = None if left_dst is None else str(left_dst)      # 왼쪽 옆 차선 link
+        self.right_dst = None if right_dst is None else str(right_dst)
         seg = np.linalg.norm(np.diff(pts, axis=0), axis=1)
         self.length = float(seg.sum())
         h = polyline_heading(pts)
@@ -95,8 +99,21 @@ class LaneMap:
             if not pts or len(pts) < 2:
                 continue
             links.append(Link(item["idx"], pts,
-                              item.get("from_node_idx"), item.get("to_node_idx")))
+                              item.get("from_node_idx"), item.get("to_node_idx"),
+                              item.get("link_type"),
+                              item.get("left_lane_change_dst_link_idx"),
+                              item.get("right_lane_change_dst_link_idx")))
         return cls(links)
+
+    # ------------------------------------------------------------------ query
+    def links_near(self, x, y, radius):
+        """(x, y)에서 radius 안에 점이 있는 link ID 목록."""
+        q = np.array([x, y], dtype=float)
+        if self._tree is not None:
+            idx = self._tree.query_ball_point(q, radius)
+        else:
+            idx = np.where(np.linalg.norm(self._xy - q, axis=1) <= radius)[0]
+        return sorted(set(self._owner[idx])) if len(idx) else []
 
     # ----------------------------------------------------------------- match
     def match(self, x, y, yaw=None, max_dist=3.0, max_heading_deg=45.0):

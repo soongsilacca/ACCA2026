@@ -191,7 +191,7 @@ class RearLidarPerceptionNode {
                             "/morai/ego_vehicle_status");
     pnh_.param<std::string>("output_frame", output_frame_, "base_link");
 
-    pnh_.param("sensor_x", sensor_x_, -0.73f);
+    pnh_.param("sensor_x", sensor_x_, -0.82f);
     pnh_.param("sensor_y", sensor_y_, 0.0f);
     pnh_.param("sensor_z", sensor_z_, 0.22f);
     pnh_.param("sensor_roll", sensor_roll_, 0.0f);

@@ -40,6 +40,29 @@ def resample_polyline(points, step):
     return out, sigma
 
 
+def clip_polyline_ahead(points, x0, y0, length):
+    """(x0, y0)를 polyline에 투영한 점부터 앞쪽으로 누적 길이 length만 남긴다.
+    끝점은 정확히 length 지점으로 보간한다. length <= 0이면 투영점부터 끝까지."""
+    pts = np.asarray(points, dtype=float)[:, :2]
+    if len(pts) < 2:
+        return pts
+    a = pts[:-1]
+    d = np.diff(pts, axis=0)
+    l2 = np.maximum(np.sum(d * d, axis=1), 1e-12)
+    t = np.clip(((x0 - a[:, 0]) * d[:, 0] + (y0 - a[:, 1]) * d[:, 1]) / l2, 0.0, 1.0)
+    proj = a + t[:, None] * d
+    i = int(np.argmin(np.hypot(proj[:, 0] - x0, proj[:, 1] - y0)))
+    out = np.vstack([proj[i:i + 1], pts[i + 1:]])
+    if length <= 0.0:
+        return out
+    cum = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(out, axis=0), axis=1))])
+    if cum[-1] <= length:
+        return out
+    k = int(np.searchsorted(cum, length))
+    end = [np.interp(length, cum, out[:, 0]), np.interp(length, cum, out[:, 1])]
+    return np.vstack([out[:k], end])
+
+
 def polyline_heading(pts):
     """각 점의 진행 방향. 마지막 점은 직전 구간 방향을 사용."""
     d = np.diff(pts, axis=0)

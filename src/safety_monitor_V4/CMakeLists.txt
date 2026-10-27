@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   std_msgs
+  tf2_eigen
+  tf2_ros
   visualization_msgs
 )
 find_package(PCL REQUIRED COMPONENTS common filters search segmentation)

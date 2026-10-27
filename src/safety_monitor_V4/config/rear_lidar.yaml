@@ -1,4 +1,6 @@
-# Mounting pose supplied in MORAI (base_link -> rear_lidar).
+# 점은 입력 PointCloud2의 frame_id TF (base_link <- frame_id)로 변환한다.
+# 아래 sensor_*는 use_tf: false일 때만 쓴다 (base_link -> rear_lidar 장착 위치).
+use_tf: true
 sensor_x: -0.82
 sensor_y: 0.0
 sensor_z: 0.22

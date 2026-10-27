@@ -160,6 +160,27 @@ Visualization Manager:
             teacher_path_surface: true
           Queue Size: 20
           Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /safety/mgeo_lanes
+          Name: Safety MGeo Lanes
+          Namespaces:
+            mgeo_adjacent_lanes: true
+            mgeo_ego_info: true
+            mgeo_ego_lane: true
+            mgeo_junction_lanes: true
+            mgeo_lanes: true
+          Queue Size: 5
+          Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /safety/collision_markers
+          Name: Safety Targets and Target Lane
+          Namespaces:
+            safety_target_lane: true
+            safety_targets: true
+          Queue Size: 5
+          Value: true
       Enabled: true
       Name: V17 Planning
     - Class: rviz/Group

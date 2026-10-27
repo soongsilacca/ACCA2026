@@ -45,6 +45,13 @@ hold_max: 5.0
 hold_velocity_window: 5
 hold_velocity_max_front_x: 1.2
 
+# 대상 속도: MGeo 차선을 따라간다고 보고 차선 방향 거리 변화율을 칼만 필터로 추정
+# false면 기존처럼 추적기 속도(프레임 간 위치 차분)를 차선 방향으로 투영
+lane_speed: true
+lane_speed_accel_std: 3.0
+lane_speed_meas_std: 0.3
+lane_speed_init_std: 5.0
+
 # 발행/해제 (프레임)
 n_on: 2
 n_off: 5

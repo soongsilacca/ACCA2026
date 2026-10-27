@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -24,6 +25,8 @@
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/String.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_ros/transform_listener.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -142,6 +145,11 @@ class RearLidarPerceptionNode {
     sensor_to_base_.setIdentity();
     sensor_to_base_.linear() = rotation;
     sensor_to_base_.translation() = Eigen::Vector3f(sensor_x_, sensor_y_, sensor_z_);
+    if (use_tf_) {
+      // Points are transformed with the TF of the incoming cloud's frame_id.
+      // sensor_* is only used when use_tf is false.
+      tf_listener_.reset(new tf2_ros::TransformListener(tf_buffer_));
+    }
 
     cloud_sub_ = nh_.subscribe(input_topic_, 1,
                                &RearLidarPerceptionNode::cloudCallback, this);
@@ -184,8 +192,14 @@ class RearLidarPerceptionNode {
         ros::WallDuration(1.0), &RearLidarPerceptionNode::watchdogCallback, this);
 
     ROS_INFO("Rear LiDAR perception: %s -> /rear_lidar/obstacles", input_topic_.c_str());
-    ROS_INFO("Mount base_link->rear_lidar xyz=(%.2f, %.2f, %.2f), rpy=(%.3f, %.3f, %.3f)",
-             sensor_x_, sensor_y_, sensor_z_, sensor_roll_, sensor_pitch_, sensor_yaw_);
+    if (use_tf_) {
+      ROS_INFO("Mount: TF %s <- <cloud frame_id> (sensor_* params ignored)",
+               output_frame_.c_str());
+    } else {
+      ROS_INFO("Mount from params %s->sensor xyz=(%.2f, %.2f, %.2f), rpy=(%.3f, %.3f, %.3f)",
+               output_frame_.c_str(), sensor_x_, sensor_y_, sensor_z_,
+               sensor_roll_, sensor_pitch_, sensor_yaw_);
+    }
     ROS_INFO("Tracking motion sources: primary=%s fallback=%s ego_status=%s",
              odom_topic_.empty() ? "disabled" : odom_topic_.c_str(),
              fallback_odom_topic_.empty() ? "disabled" : fallback_odom_topic_.c_str(),
@@ -202,6 +216,7 @@ class RearLidarPerceptionNode {
                             "/morai/ego_vehicle_status");
     pnh_.param<std::string>("output_frame", output_frame_, "base_link");
 
+    pnh_.param("use_tf", use_tf_, true);
     pnh_.param("sensor_x", sensor_x_, -0.82f);
     pnh_.param("sensor_y", sensor_y_, 0.0f);
     pnh_.param("sensor_z", sensor_z_, 0.22f);
@@ -419,6 +434,48 @@ class RearLidarPerceptionNode {
     ego.y += displacement.y();
     ego.yaw += ego.yaw_rate * dt;
     return ego;
+  }
+
+  // Sensor mount from TF (output_frame <- cloud frame_id).  The mount is static,
+  // so the transform is looked up once per frame_id and cached.  Returns false
+  // when it is unavailable; the scan is then dropped so downstream monitors
+  // see the perception output stop instead of points placed at a wrong offset.
+  bool updateSensorTransform(const std::string& frame) {
+    if (!use_tf_) {
+      return true;
+    }
+    if (sensor_tf_ready_ && frame == sensor_tf_frame_) {
+      return true;
+    }
+    std::string error;
+    if (frame.empty()) {
+      error = "cloud header.frame_id is empty";
+    } else if (frame == output_frame_) {
+      sensor_to_base_.setIdentity();
+    } else {
+      try {
+        const geometry_msgs::TransformStamped tf = tf_buffer_.lookupTransform(
+            output_frame_, frame, ros::Time(0), ros::Duration(0.1));
+        sensor_to_base_ = tf2::transformToEigen(tf).cast<float>();
+      } catch (const tf2::TransformException& ex) {
+        error = ex.what();
+      }
+    }
+    if (!error.empty()) {
+      std_msgs::String status;
+      status.data = "NO_TF: " + output_frame_ + " <- '" + frame + "': " + error;
+      status_pub_.publish(status);
+      ROS_ERROR_THROTTLE(2.0, "%s", status.data.c_str());
+      return false;
+    }
+    sensor_tf_frame_ = frame;
+    sensor_tf_ready_ = true;
+    const Eigen::Vector3f t = sensor_to_base_.translation();
+    const Eigen::Vector3f rpy = sensor_to_base_.linear().eulerAngles(2, 1, 0);
+    ROS_INFO("Mount from TF %s <- %s xyz=(%.3f, %.3f, %.3f), ypr=(%.3f, %.3f, %.3f)",
+             output_frame_.c_str(), frame.c_str(), t.x(), t.y(), t.z(),
+             rpy.x(), rpy.y(), rpy.z());
+    return true;
   }
 
   Cloud::Ptr transformAndCrop(const sensor_msgs::PointCloud2& msg) const {
@@ -1226,6 +1283,9 @@ class RearLidarPerceptionNode {
 
     const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now()
                                                        : msg->header.stamp;
+    if (!updateSensorTransform(msg->header.frame_id)) {
+      return;
+    }
     Cloud::Ptr cropped = transformAndCrop(*msg);
     Cloud::Ptr ground;
     Cloud::Ptr without_ground;
@@ -1310,6 +1370,11 @@ class RearLidarPerceptionNode {
   std::string ego_status_topic_;
   std::string output_frame_;
   Eigen::Affine3f sensor_to_base_{Eigen::Affine3f::Identity()};
+  bool use_tf_{true};
+  bool sensor_tf_ready_{false};
+  std::string sensor_tf_frame_;
+  tf2_ros::Buffer tf_buffer_;
+  std::unique_ptr<tf2_ros::TransformListener> tf_listener_;
 
   float sensor_x_, sensor_y_, sensor_z_;
   float sensor_roll_, sensor_pitch_, sensor_yaw_;

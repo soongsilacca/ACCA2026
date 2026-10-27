@@ -20,6 +20,7 @@
     <param name="ego_topic" value="$(arg ego_topic)" />
     <param name="ego_velocity_scale" value="1.0" />
     <param name="route_topic" value="$(arg route_topic)" />
+    <param name="route_length" value="10.0" /> <!-- local route를 자차 앞 10 m로 자름 -->
     <param name="tracks_topic" value="$(arg tracks_topic)" />
   </node>
 

@@ -52,6 +52,12 @@ class CollisionParams:
     hold_velocity_window: int = 5         # 속도 스냅샷: 최근 N개 관측 프레임 중앙값
     hold_velocity_max_front_x: float = 1.2  # ROI(x<=1.5)에 박스가 잘리기 전 프레임만 사용
 
+    # 대상 속도: 차선 추종 가정 칼만 필터 (collision/lane_speed.py). False면 추적기 속도를 차선 방향으로 투영
+    lane_speed: bool = True
+    lane_speed_accel_std: float = 3.0   # 공정 잡음 (가속도 표준편차, m/s^2)
+    lane_speed_meas_std: float = 0.3    # 차선 방향 위치 측정 표준편차 (m)
+    lane_speed_init_std: float = 5.0    # 초기 속도(추적기 값) 표준편차 (m/s)
+
     # 발행/해제 (프레임 단위)
     n_on: int = 2
     n_off: int = 5

@@ -31,7 +31,8 @@ def from_msg(obj):
     )
 
 
-def to_target(obs, ego, target_poly, origin_poly, params):
+def to_target(obs, ego, target_poly, origin_poly, params, v_s=None):
+    """v_s: 차선 추종 추정 속도 (collision/lane_speed.py). None이면 추적기 속도를 차선 방향으로 투영."""
     p = params
     front_x = obs.x + 0.5 * obs.dim_x
     fx, fy = base_to_map(ego, front_x, obs.y)
@@ -39,8 +40,9 @@ def to_target(obs, ego, target_poly, origin_poly, params):
     s_front, _, h = target_poly.project_one(fx, fy)
     _, d_center, _ = target_poly.project_one(cx, cy)
     _, d_origin, _ = origin_poly.project_one(cx, cy)
-    vxm, vym = rotate_to_map(ego, obs.vx, obs.vy)
-    v_s = vxm * math.cos(h) + vym * math.sin(h)
+    if v_s is None:
+        vxm, vym = rotate_to_map(ego, obs.vx, obs.vy)
+        v_s = vxm * math.cos(h) + vym * math.sin(h)
     width = min(max(obs.dim_y, p.obs_width_min), p.obs_width_max)
     length = max(obs.dim_x, p.obs_length_default)
     return Target(

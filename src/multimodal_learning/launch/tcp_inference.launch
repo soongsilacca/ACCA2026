@@ -18,8 +18,10 @@
   <arg name="launch_controller" default="false" />
   <!-- Use the full TCP Beta-policy output for accel/brake/steer. -->
   <arg name="direct_control" default="true" />
+  <arg name="brake_gain" default="1.5" />
+  <arg name="mgeo_override_enabled" default="true" />
   <arg name="use_model_stop" default="false" />
-  <arg name="direct_steer_gain" default="1.6" />
+  <arg name="direct_steer_gain" default="1.5" />
   <arg name="model_input_min_speed_kph" default="1.0" />
   <!-- Follow the full-TCP trajectory with the existing Stanley controller. -->
   <arg name="controller_mode" default="pp" />
@@ -101,6 +103,10 @@
     <param name="camera_topic" value="$(arg camera_topic)" />
     <param name="use_cuda" value="$(arg use_cuda)" />
     <param name="direct_control" value="$(arg direct_control)" />
+    <param name="brake_gain" value="$(arg brake_gain)" />
+    <!-- All direction-matched signal stops on global_path.csv; teacher buffers: 10 m, 15 m for 052/091. -->
+    <rosparam param="signal_brake_points">[[-98.82457589423474, -264.49159979402754], [-60.82647808169827, -170.35794933538023], [-60.0999093674505, -44.510024043645956], [-60.94799259654387, 69.30689901613107], [-27.692871707893897, 98.83772259197012]]</rosparam>
+    <param name="mgeo_override_enabled" value="$(arg mgeo_override_enabled)" />
     <param name="use_model_stop" value="$(arg use_model_stop)" />
     <param name="direct_steer_gain" value="$(arg direct_steer_gain)" />
     <param name="model_input_min_speed_kph" value="$(arg model_input_min_speed_kph)" />
@@ -123,11 +129,31 @@
            value="$(arg avoid_enter_probability)" />
   </node>
 
+  <!-- MPC produces a candidate; TCP selects it only in the specified segment. -->
+  <group if="$(eval arg('mgeo_override_enabled') and arg('direct_control'))">
+    <node pkg="control" type="adaptive_weight.py" name="tcp_mgeo_adaptive_weight" output="screen">
+      <remap from="/tracking_info" to="/multimodal_learning/mgeo_tracking_info" />
+      <remap from="/mpc_weight" to="/multimodal_learning/mgeo_mpc_weight" />
+    </node>
+    <node pkg="control" type="mpc_node.py" name="tcp_mgeo_follower" output="screen">
+      <remap from="/ctrl_cmd" to="/multimodal_learning/mgeo_ctrl_cmd" />
+      <remap from="/tracking_info" to="/multimodal_learning/mgeo_tracking_info" />
+      <remap from="/mpc_weight" to="/multimodal_learning/mgeo_mpc_weight" />
+      <param name="controller_mode" value="mpc" />
+      <param name="path_topic" value="/local_route" />
+      <param name="path_start_index" value="0" />
+      <param name="ai_path_timeout" value="$(arg ai_path_timeout)" />
+      <param name="target_velocity_topic" value="/target_velocity" />
+      <param name="mode_score_topic" value="/multimodal_learning/mode_scores" />
+      <param name="stop_release_hold_sec" value="0.0" />
+    </node>
+  </group>
+
   <node if="$(arg rviz)" pkg="rviz" type="rviz"
         name="multimodal_inference_rviz"
         args="-d $(arg rviz_config)" output="screen" />
 
-  <group if="$(arg launch_controller)">
+  <group if="$(eval arg('launch_controller') and not arg('direct_control'))">
     <include file="$(find control)/launch/control_mpc_with_weight.launch">
       <arg name="controller_mode" value="$(arg controller_mode)" />
       <arg name="path_topic" value="$(arg mpc_path_topic)" />

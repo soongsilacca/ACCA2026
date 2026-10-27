@@ -16,10 +16,10 @@ ACCA 2026 후방 안전 감시 패키지 (ROS1 Noetic, Ubuntu 20.04).
 ## 구성
 
 ```
-MORAI VLP-16 ─▶ velodyne driver ─/rear_lidar/points_raw─▶ rear_lidar_perception_node
-                                                             │ /rear_lidar/tracked_objects
-/morai/ego_vehicle_status, /local_route, MGeo ──────────────▶ rear_collision_node ─/safety/collision_estop─┐
-/imu, /rear_lidar/points_raw, /morai/ego_vehicle_status ────▶ sensor_health_node  ─/safety/sensor_estop───┤
+MORAI VLP-16 ─/velodyne_points (frame velodyne, TF로 base_link 변환)─▶ rear_lidar_perception_node
+                                                             │ /rear_lidar/tracked_objects (base_link)
+/localization/kinematic_state (map), /local_route, MGeo ────▶ rear_collision_node ─/safety/collision_estop─┐
+/imu, /velodyne_points, /localization/kinematic_state ──────▶ sensor_health_node  ─/safety/sensor_estop───┤
 제어기 ─/ctrl_cmd_raw───────────────────────────────────────────────────────────────────────────────────▶ estop_gate_node ─/ctrl_cmd─▶ MORAI
 ```
 
@@ -93,7 +93,7 @@ morai_ego_ctrl_sender: /ctrl_cmd → UDP 9093
   그래서 모델 launch의 센서 포함 부분은 끄고 `multimodal_sensors.launch`를 따로 띄운다.
 - 전방 VLP-16이 2368을 쓰므로 후방 LiDAR는 `rear_lidar_port:=2370`(기본값)으로 받는다. MORAI 후방 LiDAR Destination Port를 2370으로 맞춘다.
 - MGeo는 `mgeo_route_publisher`와 같은 `map_viz/scripts/link_set.json`을 쓴다.
-- ego status는 `ego_status_port:=9011`로 받은 `/morai/ego_vehicle_status` 하나만 쓴다.
+- 자차 상태는 인지 노드와 충돌 판정 모두 `/localization/kinematic_state`(frame `map` → `base_link`) 하나만 쓴다 (`bringup.launch` `ego_topic`).
 - MPC(`mpc_node.py`)는 10 Hz로 발행한다. gate `cmd_timeout` 0.2 s는 한 주기 누락까지만 허용한다.
 - 송신기는 `/morai/episode_status`에 LOADED가 오면 3 s 동안 가속 0.3을 직접 보낸다 (gate 우회).
   `scenario_episode_manager`를 같이 띄울 때는 송신기의 `startup_accel_duration_sec`를 0으로 둔다.
@@ -125,7 +125,8 @@ rosrun safety_monitor analyze_tracking_bag.py lc.bag --track-id <ID>   # 인지 
 인지 (기존 패키지 대비 변경점)
 - 선회 중 새 트랙 확정 조건의 폭을 `min(dx, dy)` 대신 `dy`(base_link 횡방향 길이)로 계산. 후방 차량은 앞면만 보여서 깊이 약 0.3 m가 폭으로 잡혔다.
 - 선회 전에 확정된 동적 트랙은 yaw rate가 0.08 rad/s를 넘는 동안 점수를 깎지 않음 (`keep_confirmed_during_turn`). 차선 변경 중 yaw rate는 0.12~0.25 rad/s.
-- 자차 이동 정보 출처는 `/morai/ego_vehicle_status` 하나만 사용. `odom_topic`, `fallback_odom_topic`을 빈 문자열로 두면 구독하지 않도록 수정. 출처가 바뀌면 트랙 전체가 초기화되기 때문.
+- 자차 이동 정보 출처는 `/localization/kinematic_state` 하나만 사용 (`odom_topic`). `fallback_odom_topic`, `ego_status_topic`은 빈 문자열로 두어 구독하지 않는다. 출처가 바뀌면 트랙 전체가 초기화되기 때문.
+- 점 변환은 입력 PointCloud2 `frame_id`의 TF(`base_link <- frame_id`)를 조회해 쓴다 (`use_tf: true`). 파라미터 `sensor_*`(후방 LiDAR -0.82 m)를 그대로 쓰면 `/velodyne_points`(TF 3.85 m, 앞 범퍼)를 입력할 때 모든 점이 4.67 m 뒤로 밀린다. TF가 없으면 그 스캔을 버리고 `/rear_lidar/status`에 `NO_TF`를 낸다 (출력이 끊겨 gate가 제동).
 - 인지 노드 `required="false"`. 인지가 죽으면 충돌 감시 발행이 끊기고 gate가 제동한다. 이전처럼 `required="true"`이면 gate까지 함께 종료되어 MORAI가 마지막 명령을 유지할 수 있다.
 
 인지 수정 검증 (PCL 1.14 + ROS stub으로 추적기만 빌드해서 시험, 대상 13 m/s, 자차 8 m/s, 10프레임 직진 후 15프레임 선회)
@@ -141,6 +142,7 @@ rosrun safety_monitor analyze_tracking_bag.py lc.bag --track-id <ID>   # 인지 
 충돌 판정
 - 목표 차선 Frenet(MGeo 차선 중심선)에서 횡방향 진입 시각과 종방향 겹침 구간을 구해 결합한다.
 - 목표 차선은 local route가 현재 차선 중심선에서 `lane_half_width` 이상 벗어나는 첫 지점의 차선이다. 외부 토픽으로 차선 변경 여부를 받지 않는다.
+- local route는 받을 때 자차 투영점부터 앞 10 m(`~route_length`)만 남긴다. 차선 변경 시작은 경로가 자차 앞 10 m 안에서 현재 차선을 벗어날 때 잡힌다.
 - 차선 변경 종료는 목표 차선 기준 횡오프셋 ≤ 0.3 m, heading ≤ 3°. 종료 전에는 대상이 자차 현재 차선으로 재분류되어도 감시한다.
 - 감시 대상은 `is_dynamic` 대신 목표 차선 방향 속도와 이력 임계(진입 0.5, 제외 −0.5 m/s)로 고른다. 예측 구간 안에 겹침에 도달할 수 있는 거리 안의 차량은 속도와 무관하게 유지한다.
 - 종방향 거리는 직선 거리 대신 목표 차선 중심선의 s 차이로 계산한다.
@@ -149,12 +151,18 @@ rosrun safety_monitor analyze_tracking_bag.py lc.bag --track-id <ID>   # 인지 
 인지 출력 처리 (`adapters/tracked_object.py`)
 - pose는 보이는 점들의 축정렬 박스 중심이다. 후방 차량은 앞면만 보이므로 앞 끝 = pose.x + dim_x/2, 전장은 가정값 4.6 m.
 - 폭은 dim_y를 [1.6, 2.2] m로 제한해 쓴다.
-- 속도는 `velocity`(자차 이동 보정된 지면 속도)를 map으로 회전해 중심선 접선에 투영한다.
+- 속도는 대상이 MGeo 차선을 따라간다고 보고 추정한다 (`collision/lane_speed.py`, `lane_speed: true`).
+  대상이 매칭된 차선 중심선 위에서 z = s(대상 앞 끝) − s(자차 뒤 끝)를 매 관측마다 재고, [z, dz/dt] 칼만 필터(가속도 σ 3 m/s², 위치 σ 0.3 m)로 변화율을 구한다.
+  v_s = 자차 차선 방향 속도 + dz/dt. 두 점을 같은 자차 pose로 옮기므로 localization 위치 흔들림이 상쇄되고, 박스 중심 흔들림과 횡방향 속도 잡음이 들어가지 않는다.
+  추적기 `velocity`(프레임 간 위치 차분)는 필터 초기값(σ 5 m/s)으로만 쓴다. coasting 프레임은 예측만 한다.
+  차선 변경 전부터 모든 트랙을 추정해 두어 시작 시점에 수렴해 있다. `lane_speed: false`면 이전 방식(`velocity`를 중심선 접선에 투영).
 
 예외 처리
 - 정지 중(< 0.3 m/s)에는 진입 시각 계산에 재출발 가정 속도 4.0 m/s를 쓴다. 이미 횡방향으로 겹쳤으면 진입 시각 0.
 - 통과 차량: 감시 중이던 트랙이 측정되지 않은 첫 프레임(coasting 시작 또는 삭제)에서 간격이 2.0 m 이하이면 마지막 측정 시각 + t_end + 0.68 s까지 정지 유지. 속도는 박스가 ROI(x ≤ 1.5)에 잘리기 전 프레임 중앙값. 상대속도가 작으면 재관측까지 유지하되 최대 5 s (보고서의 "재관측까지"와 다름: 앞으로 지나간 차량은 후방 LiDAR에 다시 잡히지 않음).
 - 차선 변경 중 자차 이동 보정이 안 된 트랙이 있으면 정지.
+- 좌표계: 트랙(`base_link`)과 local route(`base_link` 또는 `map`)는 각 메시지 시각으로 보간한 자차 pose(`common/ego_history.py`, 이력 밖은 0.2 s까지 등속 외삽)로 map(MGeo 좌표)에 옮긴다. 최신 pose를 쓰면 트랙 시각보다 평균 49 ms 늦어 15 m/s에서 진행 방향 약 0.7 m 어긋났다.
+- frame_id 확인: 자차 odometry가 `map`→`base_link`가 아니거나 route가 `map`/`base_link`가 아니면 그 메시지를 버린다. 트랙이 `base_link`가 아니면 정지(`tracks_frame:<frame>`).
 - 자차 상태가 0.3 s 이상 끊기면 정지. 차선 변경 중 local route가 끊겨도 정지.
 - 판정 중 예외가 나면 정지.
 - 자차/목표 차선을 MGeo에 매칭하지 못하면 기본값은 정지하지 않음 (`stop_on_map_failure`).
@@ -183,6 +191,7 @@ gate
 - [ ] 신호별 실제 주기 `rostopic hz` → `health.yaml` `rate_hz`
 - [ ] `/local_route` 메시지 형식이 `nav_msgs/Path`이고 frame이 base_link인지
 - [ ] MGeo 좌표와 `/morai/ego_vehicle_status` 좌표가 같은 원점인지 (RViz `Safety targets and target lane`의 선이 실제 차선 위에 그려지는지)
+  - `/safety/mgeo_lanes` (RViz `Safety MGeo Lanes`): 판정에 쓰는 자차 상태로 주변 MGeo 차선을 base_link에 그린다. 회색 일반 차선, 주황 교차로 연결 link, 초록 자차 차선, 하늘색 MGeo 옆 차선, 텍스트는 매칭된 link / 횡오프셋 d / 좌우 옆 차선 link.
 - [ ] `expected_ground_z=-0.46`이 후방 LiDAR 높이에 맞는지 (RViz Debug Ground)
 - [ ] `/rear_lidar/status`의 `processing_ms`와 실제 처리 주기
 - [ ] `multimodal_safety.launch`: MORAI 후방 LiDAR Destination Port 2370, `rostopic info /ctrl_cmd` 발행자가 `/estop_gate` 하나뿐인지

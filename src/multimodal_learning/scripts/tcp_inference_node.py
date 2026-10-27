@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """ROS inference bridge for the TCP MORAI trajectory checkpoint."""
 
+import copy
 import json
 import math
 import os
@@ -182,6 +183,9 @@ class TCPInferenceNode:
         self.direct_steer_gain = float(rospy.get_param(
             "~direct_steer_gain", 1.0
         ))
+        self.brake_gain = float(rospy.get_param("~brake_gain", 1.5))
+        if not math.isfinite(self.brake_gain) or self.brake_gain <= 0.0:
+            raise ValueError("brake_gain must be finite and positive")
         if self.direct_steer_gain <= 0.0:
             raise ValueError("direct_steer_gain must be positive")
         if (
@@ -274,6 +278,12 @@ class TCPInferenceNode:
         self.latest_status = None
         self.latest_route = None
         self.latest_mgeo_speed = None
+        self.mgeo_override_enabled = bool(rospy.get_param("~mgeo_override_enabled", False))
+        self.latest_mgeo_control = None
+        self.latest_mgeo_control_time = None
+        self.signal_brake_points = rospy.get_param("~signal_brake_points", [])
+        self.signal_brake_fired = set()
+        self.signal_brake_until = float("-inf")
         self.last_inference_stamp = float("-inf")
 
         self.prediction_lock = threading.Lock()
@@ -360,6 +370,10 @@ class TCPInferenceNode:
             self.mgeo_speed_callback,
             queue_size=1,
         )
+        rospy.Subscriber(
+            "/multimodal_learning/mgeo_ctrl_cmd", CtrlCmd,
+            self.mgeo_control_callback, queue_size=1,
+        )
         camera_topic = rospy.get_param(
             "~camera_topic", "/camera/front/image/compressed"
         )
@@ -396,6 +410,120 @@ class TCPInferenceNode:
     def status_callback(self, msg):
         with self.state_lock:
             self.latest_status = msg
+
+    def mgeo_control_callback(self, msg):
+        with self.state_lock:
+            self.latest_mgeo_control = msg
+            self.latest_mgeo_control_time = rospy.Time.now()
+
+    def in_mgeo_override(self, odom):
+        if not self.mgeo_override_enabled or odom is None:
+            return False
+        point = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y])
+        # Existing corridor and the additional MGeo section (start extended backward by 20 m).
+        segments = [
+            ([67.6, -137.0], [73.785329, -254.979428]),
+            ([-109.445758, -388.363365], [-109.320723, -388.136393]),
+            ([-109.320723, -388.136393], [-109.079465, -387.69845]),
+            ([-109.079465, -387.69845], [-108.838207, -387.260506]),
+            ([-108.838207, -387.260506], [-108.59695, -386.822562]),
+            ([-108.59695, -386.822562], [-108.355692, -386.384619]),
+            ([-108.355692, -386.384619], [-108.114435, -385.946675]),
+            ([-108.114435, -385.946675], [-107.87179, -385.509498]),
+            ([-107.87179, -385.509498], [-107.629145, -385.072322]),
+            ([-107.629145, -385.072322], [-107.3865, -384.635145]),
+            ([-107.3865, -384.635145], [-107.143856, -384.197968]),
+            ([-107.143856, -384.197968], [-106.901211, -383.760791]),
+            ([-106.901211, -383.760791], [-106.658566, -383.323615]),
+            ([-106.658566, -383.323615], [-106.415921, -382.886438]),
+            ([-106.415921, -382.886438], [-106.173277, -382.449261]),
+            ([-106.173277, -382.449261], [-105.930632, -382.012084]),
+            ([-105.930632, -382.012084], [-105.689391, -381.574132]),
+            ([-105.689391, -381.574132], [-105.44815, -381.136179]),
+            ([-105.44815, -381.136179], [-105.206909, -380.698226]),
+            ([-105.206909, -380.698226], [-104.965668, -380.260273]),
+            ([-104.965668, -380.260273], [-104.724427, -379.82232]),
+            ([-104.724427, -379.82232], [-104.483186, -379.384367]),
+            ([-104.483186, -379.384367], [-104.241945, -378.946414]),
+            ([-104.241945, -378.946414], [-104.000704, -378.508462]),
+            ([-104.000704, -378.508462], [-103.755916, -378.072483]),
+            ([-103.755916, -378.072483], [-103.511128, -377.636504]),
+            ([-103.511128, -377.636504], [-103.26634, -377.200526]),
+            ([-103.26634, -377.200526], [-103.021551, -376.764547]),
+            ([-103.021551, -376.764547], [-102.776763, -376.328568]),
+            ([-102.776763, -376.328568], [-102.531975, -375.89259]),
+            ([-102.531975, -375.89259], [-102.287187, -375.456611]),
+            ([-102.287187, -375.456611], [-102.042399, -375.020632]),
+            ([-102.042399, -375.020632], [-101.800322, -374.583144]),
+            ([-101.800322, -374.583144], [-101.558245, -374.145656]),
+            ([-101.558245, -374.145656], [-101.316168, -373.708169]),
+            ([-101.316168, -373.708169], [-101.07409, -373.270681]),
+            ([-101.07409, -373.270681], [-100.832013, -372.833193]),
+            ([-100.832013, -372.833193], [-100.589936, -372.395705]),
+            ([-100.589936, -372.395705], [-100.347859, -371.958217]),
+            ([-100.347859, -371.958217], [-100.105782, -371.520729]),
+            ([-100.105782, -371.520729], [-100.025864, -371.382514]),
+            ([-100.025864, -371.382514], [-99.522678, -371.673462]),
+            ([-99.522678, -371.673462], [-97.618137, -367.183655]),
+            ([-97.618137, -367.183655], [-95.68565, -363.536316]),
+            ([-95.68565, -363.536316], [-94.466427, -358.720643]),
+            ([-94.466427, -358.720643], [-95.093563, -353.790894]),
+            ([-95.093563, -353.790894], [-97.513936, -349.447968]),
+            ([-97.513936, -349.447968], [-101.366971, -346.30356]),
+            ([-101.366971, -346.30356], [-105.171164, -344.247804]),
+            ([-105.171164, -344.247804], [-109.597417, -341.923463]),
+            ([-109.597417, -341.923463], [-111.176611, -341.08165]),
+        ]
+        for start_xy, end_xy in segments:
+            start = np.asarray(start_xy)
+            segment = np.asarray(end_xy) - start
+            progress = float(np.dot(point - start, segment) / np.dot(segment, segment))
+            if (0.0 <= progress <= 1.0
+                    and np.linalg.norm(point - start - progress * segment) <= 8.0):
+                return True
+        return False
+
+    def signal_brake_active(self):
+        # One pulse per configured stop line per node run, independent of color.
+        now = time.monotonic()
+        with self.state_lock:
+            odom = self.latest_odom
+        if odom is not None:
+            point = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y])
+            for index, stopline in enumerate(self.signal_brake_points):
+                if index not in self.signal_brake_fired and np.linalg.norm(
+                        point - np.asarray(stopline, dtype=float)) <= 5.0:
+                    self.signal_brake_fired.add(index)
+                    self.signal_brake_until = now + 0.5
+                    rospy.loginfo("Signal %d: unconditional 0.5s brake pulse", index + 1)
+        return now < self.signal_brake_until
+
+    def selected_target_speed(self, odom, stop_active, tcp_speed_head, mgeo_speed):
+        if stop_active:
+            return 0.0
+        if self.in_mgeo_override(odom):
+            return max(0.0, tcp_speed_head) if math.isfinite(tcp_speed_head) else 0.0
+        return 0.0 if mgeo_speed is None else mgeo_speed
+
+    def publish_selected_control(self, prediction):
+        with self.state_lock:
+            odom = self.latest_odom
+            control = self.latest_mgeo_control
+            received = self.latest_mgeo_control_time
+        active = self.in_mgeo_override(odom)
+        if not active:
+            self.publish_direct_control(prediction)
+        elif self.direct_control_pub is not None:
+            if (prediction["stop_active"] or control is None or received is None
+                    or (rospy.Time.now() - received).to_sec() > 0.5):
+                self.publish_direct_control()
+            else:
+                control = copy.copy(control)
+                control.brake = float(np.clip(control.brake * self.brake_gain, 0.0, 1.0))
+                self.direct_control_pub.publish(control)
+                self.direct_control_values_pub.publish(Float32MultiArray(
+                    data=[control.accel, control.brake, control.steer]))
+        return active
 
     def route_callback(self, msg):
         with self.state_lock:
@@ -793,8 +921,8 @@ class TCPInferenceNode:
                 self.publish_tcp_mode(
                     stop_active, action_probabilities, action_index
                 )
-                target_speed = 0.0 if stop_active else (
-                    0.0 if mgeo_speed is None else mgeo_speed
+                target_speed = self.selected_target_speed(
+                    odom, stop_active, tcp_speed_head, mgeo_speed
                 )
                 self.target_speed_pub.publish(Float32(target_speed))
                 self.target_speed_kph_pub.publish(Float32(target_speed * 3.6))
@@ -838,8 +966,8 @@ class TCPInferenceNode:
             rospy.logerr_throttle(2.0, "TCP inference failed: %s", error)
             return
 
-        target_speed = 0.0 if stop_active else (
-            0.0 if mgeo_speed is None else mgeo_speed
+        target_speed = self.selected_target_speed(
+            odom, stop_active, tcp_speed_head, mgeo_speed
         )
 
         orientation = odom.pose.pose.orientation
@@ -922,7 +1050,7 @@ class TCPInferenceNode:
                 prediction["direct_control"], dtype=np.float32
             )
             command.accel = float(np.clip(signed_accel, 0.0, 1.0))
-            command.brake = float(np.clip(-signed_accel, 0.0, 1.0))
+            command.brake = float(np.clip(-signed_accel * self.brake_gain, 0.0, 1.0))
             command.steer = math.radians(float(np.clip(
                 normalized_steer * self.direct_steer_gain,
                 -1.0,
@@ -1082,7 +1210,12 @@ class TCPInferenceNode:
             return
 
         # Send the fresh control before building visualization/path messages.
-        self.publish_direct_control(prediction)
+        if self.signal_brake_active():
+            self.publish_direct_control()
+            with self.state_lock:
+                mgeo_override = self.in_mgeo_override(self.latest_odom)
+        else:
+            mgeo_override = self.publish_selected_control(prediction)
         map_path = self.make_path(
             prediction["map_xy"],
             prediction["map_yaw"],
@@ -1101,7 +1234,7 @@ class TCPInferenceNode:
         action = int(prediction.get(
             "action_index", 1 if prediction["stop_active"] else 0
         ))
-        if ((self.tcp_path_for_drive or action == 2)
+        if ((self.tcp_path_for_drive or action == 2) and not mgeo_override
                 and not prediction["stop_active"]):
             self.control_path_pub.publish(map_path)
         else:

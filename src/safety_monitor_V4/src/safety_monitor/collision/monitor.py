@@ -16,6 +16,7 @@ from ..common.debounce import CountDebounce
 from ..common.geometry import base_to_map, polyline_heading, resample_polyline, wrap_angle
 from ..common.types import MonitorResult
 from .judge import build_route_profile, evaluate_target
+from .lane_speed import LaneSpeedEstimator
 from .pass_hold import PassHold
 from .target_selector import LaneChangeTracker, WatchSelector
 
@@ -43,6 +44,7 @@ class CollisionMonitor:
         self.selector = WatchSelector(params)
         self.hold = PassHold(params)
         self.debounce = CountDebounce(params.n_on, params.n_off)
+        self.speed = LaneSpeedEstimator(params, lanemap)
 
     def _reset_lane_state(self):
         self.selector.reset()
@@ -60,6 +62,9 @@ class CollisionMonitor:
         if ego is None or not ego.valid:
             # 자차 상태를 모르면 판정 불가 -> 정지
             return self._finish(stamp, True, "ego_invalid")
+
+        # 차선 변경 전부터 추정해 두어야 시작 시점에 속도가 수렴해 있다
+        speeds = self.speed.update(stamp, ego, objects) if p.lane_speed else {}
 
         route = prepare_route(route_map, ego, p.route_step)
         if route is None:
@@ -86,7 +91,7 @@ class CollisionMonitor:
         s_ego_rear, _, h_ego = tgt_poly.project_one(rx, ry)
         v_ego_s = ego.speed * math.cos(float(wrap_angle(ego.yaw - h_ego)))
 
-        targets = [to_target(o, ego, tgt_poly, org_poly, p) for o in objects]
+        targets = [to_target(o, ego, tgt_poly, org_poly, p, speeds.get(o.track_id)) for o in objects]
         watched = self.selector.update(targets, s_ego_rear, v_ego_s)
 
         profile = build_route_profile(route_xy, route_h, sigma, tgt_poly)

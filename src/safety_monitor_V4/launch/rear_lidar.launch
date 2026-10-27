@@ -13,7 +13,9 @@
   <arg name="launch_driver" default="true" />
   <arg name="input_topic" default="/rear_lidar/points_raw" />
 
-  <!-- base_link -> rear_lidar 장착 위치. TF와 노드 내부 변환에 같이 쓴다. -->
+  <!-- 점 변환은 입력 cloud frame_id의 TF를 쓴다 (use_tf). 아래 sensor_*는
+       use_tf:=false일 때의 노드 내부 변환과 rear_lidar 정적 TF에만 쓴다. -->
+  <arg name="use_tf" default="true" />
   <arg name="sensor_x" default="-0.82" />
   <arg name="sensor_y" default="0.0" />
   <arg name="sensor_z" default="0.22" />
@@ -76,6 +78,7 @@
     <param name="fallback_odom_topic" value="$(arg fallback_odom_topic)" />
     <param name="ego_status_topic" value="$(arg ego_status_topic)" />
     <param name="output_frame" value="base_link" />
+    <param name="use_tf" value="$(arg use_tf)" />
     <param name="sensor_x" value="$(arg sensor_x)" />
     <param name="sensor_y" value="$(arg sensor_y)" />
     <param name="sensor_z" value="$(arg sensor_z)" />

@@ -42,7 +42,7 @@ class EstopGateNode:
     def __init__(self):
         self.inputs = [
             _Input("collision", float(rospy.get_param("~collision_timeout", 1.5))),
-            _Input("sensor", float(rospy.get_param("~sensor_timeout", 0.2))),
+            _Input("sensor", float(rospy.get_param("~sensor_timeout", 1.5))),
         ]
         self.cmd_timeout = float(rospy.get_param("~cmd_timeout", 0.2))
         self.require_cmd = bool(rospy.get_param("~require_cmd", True))
