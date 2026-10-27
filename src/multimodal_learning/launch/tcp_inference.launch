@@ -104,8 +104,9 @@
     <param name="use_cuda" value="$(arg use_cuda)" />
     <param name="direct_control" value="$(arg direct_control)" />
     <param name="brake_gain" value="$(arg brake_gain)" />
-    <!-- All direction-matched signal stops on global_path.csv; teacher buffers: 10 m, 15 m for 052/091. -->
-    <rosparam param="signal_brake_points">[[-98.82457589423474, -264.49159979402754], [-60.82647808169827, -170.35794933538023], [-60.0999093674505, -44.510024043645956], [-60.94799259654387, 69.30689901613107], [-27.692871707893897, 98.83772259197012]]</rosparam>
+    <!-- All direction-matched signal stops on global_path.csv; teacher buffers: 10 m, 15 m for 052/091.
+         Right-turn stop [-60.948, 69.307] (A2256W000318, right_unprotected) is excluded: no brake pulse. -->
+    <rosparam param="signal_brake_points">[[-98.82457589423474, -264.49159979402754], [-60.82647808169827, -170.35794933538023], [-60.0999093674505, -44.510024043645956], [-27.692871707893897, 98.83772259197012]]</rosparam>
     <param name="mgeo_override_enabled" value="$(arg mgeo_override_enabled)" />
     <param name="use_model_stop" value="$(arg use_model_stop)" />
     <param name="direct_steer_gain" value="$(arg direct_steer_gain)" />

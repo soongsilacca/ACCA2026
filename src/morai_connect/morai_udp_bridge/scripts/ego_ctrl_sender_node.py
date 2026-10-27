@@ -8,6 +8,9 @@ ROS node to subscribe to control commands (/ctrl_cmd) and event commands
 """
 
 import sys
+import select
+import termios
+import tty
 import threading
 from pathlib import Path
 
@@ -37,6 +40,9 @@ class MoraiEgoCtrlSender:
             '~startup_accel_duration_sec', 3.0)))
         self.startup_accel = min(max(float(rospy.get_param(
             '~startup_accel', 0.3)), 0.0), 1.0)
+        self.wait_for_space = rospy.get_param(
+            '~wait_for_space_to_drive', False)
+        self.drive_started = not self.wait_for_space
         self.episode_loaded_time = None
         self.estop_active = False
         self.lock = threading.Lock()
@@ -63,9 +69,40 @@ class MoraiEgoCtrlSender:
         self.estop_sub = rospy.Subscriber(
             self.estop_topic, Bool, self.estop_callback, queue_size=1)
 
+        if self.wait_for_space:
+            threading.Thread(target=self.wait_for_start_key, daemon=True).start()
+
         rospy.loginfo(f"[EgoCtrlCmd] Subscribed to '{self.cmd_topic}'")
         rospy.loginfo(f"[EgoCtrlCmd] Safety override from '{self.estop_topic}'")
         rospy.loginfo(f"[EgoCtrlCmd] Forwarding to UDP {self.ip}:{self.port} at {self.send_rate}Hz")
+
+    def wait_for_start_key(self):
+        """Read the launch terminal.
+
+        roslaunch starts nodes with os.setsid, so /dev/tty is unavailable,
+        but stdin is still inherited from the launch terminal.
+        """
+        try:
+            if sys.stdin is not None and sys.stdin.isatty():
+                terminal = open(sys.stdin.fileno(), 'rb', buffering=0, closefd=False)
+            else:
+                terminal = open('/dev/tty', 'rb', buffering=0)
+            with terminal:
+                previous = termios.tcgetattr(terminal)
+                try:
+                    tty.setcbreak(terminal.fileno())
+                    rospy.loginfo('[EgoCtrlCmd] Parking: press SPACE in the launch terminal to drive')
+                    while not rospy.is_shutdown():
+                        ready, _, _ = select.select([terminal], [], [], 0.1)
+                        if ready and terminal.read(1) == b' ':
+                            with self.lock:
+                                self.drive_started = True
+                            rospy.loginfo('[EgoCtrlCmd] SPACE received: Drive enabled')
+                            return
+                finally:
+                    termios.tcsetattr(terminal, termios.TCSADRAIN, previous)
+        except (OSError, ValueError, termios.error) as exc:
+            rospy.logerr('[EgoCtrlCmd] Cannot read launch terminal; staying in Parking: %s', exc)
 
     def ctrl_cmd_callback(self, msg):
         """Callback for incoming vehicle control commands (e.g. from pure pursuit or MPC)."""
@@ -108,7 +145,20 @@ class MoraiEgoCtrlSender:
                     self.episode_loaded_time is not None and
                     (rospy.Time.now()-self.episode_loaded_time).to_sec()
                     < self.startup_accel_duration)
-                if self.estop_active:
+                # Use a packet copy so overrides never replace the latest model command.
+                command = self.data
+                self.data = EgoCtrlCmd.from_buffer_copy(command)
+                if self.wait_for_space:
+                    self.data.gear = 4 if self.drive_started else 1  # D / P
+                    self.data.ctrl_mode = 2
+                if not self.drive_started:
+                    self.data.cmd_type = 1
+                    self.data.accel = 0.0
+                    self.data.brake = 1.0
+                    self.data.velocity = 0.0
+                    self.data.acceleration = 0.0
+                    self.sender.send(self.data)
+                elif self.estop_active:
                     # Apply the stop at the final UDP boundary.  This remains
                     # authoritative even if another node publishes /ctrl_cmd
                     # directly and bypasses estop_gate's /ctrl_cmd_raw input.
@@ -136,6 +186,7 @@ class MoraiEgoCtrlSender:
                      self.data.brake) = original
                 else:
                     self.sender.send(self.data)
+                self.data = command
             rate.sleep()
 
 

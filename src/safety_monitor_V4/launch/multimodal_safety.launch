@@ -24,18 +24,16 @@
   <arg name="cmd_raw" default="/ctrl_cmd_raw" />
   <arg name="cmd_out" default="/ctrl_cmd" />
 
-  <!-- <include file="$(find multimodal_learning)/launch/multimodal_sensors.launch">
-    <arg name="use_sim_time" value="$(arg use_sim_time)" />
-    <arg name="global_path_csv" value="$(arg global_path_csv)" />
-    <arg name="ego_status_port" value="$(arg ego_status_port)" />
-    <arg name="velodyne_port" value="$(arg front_velodyne_port)" />
+  <!-- Keep the UDP sender outside the model command remap. -->
+  <param name="/morai_ego_ctrl_sender/wait_for_space_to_drive" value="true" />
+  <include file="$(find multimodal_learning)/launch/multimodal_sensors.launch">
     <arg name="enable_ctrl_sender" value="true" />
-  </include> -->
+  </include>
 
   <group>
     <remap from="/ctrl_cmd" to="$(arg cmd_raw)" />
     <include file="$(find multimodal_learning)/launch/$(arg model).launch">
-      <arg name="launch_sensors" value="true" />
+      <arg name="launch_sensors" value="false" />
       <arg name="rviz" value="$(arg model_rviz)" />
     </include>
   </group>
